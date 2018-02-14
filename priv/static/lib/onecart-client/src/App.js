@@ -4,10 +4,14 @@ import {bindActionCreators} from 'redux';
 import ReactDOM from 'react-dom';
 // import logo from './logo.svg';
 import './App.css';
-import {VIEW_NONE, VIEW_CART, VIEW_SUMMARY, ACTION_SHOW_CART, ACTION_HIDE_CART} from './consts';
-import {ACTION_REMOVE_ITEM, ACTION_SHOW_SUMMARY, ACTION_UPDATE_CART} from './consts';
+import {VIEW_NONE, VIEW_CART, VIEW_SUMMARY} from './consts';
+import {showCart, showSummary, hideAll, initCart, updateCart, removeCartItem} from './actions';
 
 class App extends Component {
+  componentDidMount() {
+    this.props.actions.initCart(this.props.appid);
+  }
+
   componentDidUpdate() {
     if (this.props.view === VIEW_CART) {
       const node = ReactDOM.findDOMNode(this.modal);
@@ -90,54 +94,9 @@ class App extends Component {
   }
 }
 
-function showSummary() {
-  return (dispatch) => {
-    dispatch({
-      type: ACTION_SHOW_SUMMARY
-    });
-  }
-}
-
-function showCart() {
-  return (dispatch) => {
-    dispatch({
-      type: ACTION_SHOW_CART
-    });
-  }
-}
-
-function hideAll() {
-  return dispatch => {
-    dispatch({
-      type: ACTION_HIDE_CART
-    });
-  };
-}
-
-function updateCart(id, qty) {
-  return (dispatch) => {
-    dispatch({
-      type: ACTION_UPDATE_CART,
-      payload: {
-        id, qty
-      }
-    });
-  };
-}
-
-function removeCartItem(id) {
-  return (dispatch) => {
-    dispatch({
-      type: ACTION_REMOVE_ITEM,
-      payload: {
-        id
-      }
-    });
-  };
-}
-
 const mapStateToProps = (state) => {
   return {
+    cartId: state.cid,
     items: state.items,
     view: state.view || VIEW_NONE
   };
@@ -145,7 +104,7 @@ const mapStateToProps = (state) => {
 
 const mapActionsToProps = (dispatch) => {
   return {
-    actions: bindActionCreators({showCart, showSummary, hideAll, updateCart, removeCartItem}, dispatch)
+    actions: bindActionCreators({showCart, showSummary, hideAll, initCart, updateCart, removeCartItem}, dispatch)
   };
 }
 
