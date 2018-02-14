@@ -5,7 +5,7 @@ import './index.css';
 import {Provider} from 'react-redux';
 import createStore from './store';
 import App from './App';
-import {ACTION_SHOW_SUMMARY, ACTION_UPDATE_CART} from './consts';
+import {showSummary, updateCart} from './actions';
 // Global exports
 
 window.ONECART = {
@@ -17,7 +17,7 @@ window.ONECART = {
     var store = createStore();
     const cartButtons = document.querySelectorAll('[onecart-toggle]');
     cartButtons && cartButtons.forEach(it => it.addEventListener('click', () => {
-      store.dispatch({type: ACTION_SHOW_SUMMARY});
+      store.dispatch(showSummary());
     }));
 
     const addToCartButtons = document.querySelectorAll('[onecart-add-to-cart]');
@@ -31,13 +31,10 @@ window.ONECART = {
           }, {});
 
       const {id,qty} = data;
-      store.dispatch({type: ACTION_UPDATE_CART, payload: {
-        id,
-        qty
-      }});
+      store.dispatch(updateCart(id, qty));
     }));
 
-    ReactDOM.render(<Provider store={store}><App /></Provider>, root);
+    ReactDOM.render(<Provider store={store}><App appid={appid} /></Provider>, root);
   }
 };
 
