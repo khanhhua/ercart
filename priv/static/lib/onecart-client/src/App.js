@@ -1,50 +1,44 @@
 import React, { Component } from 'react';
+import {connect} from 'react-redux';
+import {bindActionCreators} from 'redux';
 import ReactDOM from 'react-dom';
 // import logo from './logo.svg';
 import './App.css';
-
-const VIEW_NONE = 'none';
-const VIEW_SUMMARY = 'summary';
-const VIEW_CART = 'cart';
+import {VIEW_NONE, VIEW_CART, VIEW_SUMMARY, ACTION_SHOW_CART, ACTION_HIDE_CART} from './consts';
+import {ACTION_REMOVE_ITEM, ACTION_SHOW_SUMMARY, ACTION_UPDATE_CART} from './consts';
 
 class App extends Component {
-  state = {
-    view: VIEW_NONE,
-    items: [
-      {
-        product: 'F22 Raptor',
-        qty: 1
-      },
-      {
-        product: 'B52 Carpet Bomber',
-        qty: 2
-      }
-    ]
-  }
-
-  hideAll () {
-    this.setState({view: VIEW_NONE});
-  }
-
-  showSummary () {
-    this.setState({view: VIEW_SUMMARY});
-  }
-
-  showCart () {
-    this.setState({view: VIEW_CART}, () => {
+  componentDidUpdate() {
+    if (this.props.view === VIEW_CART) {
       const node = ReactDOM.findDOMNode(this.modal);
       node.style = 'display:block;';
 
       setTimeout(() => {
         node.classList.add('show');
       }, 300);
-    });
+    }
+  }
+
+  hideAll () {
+    this.props.actions.hideAll();
+  }
+
+  showSummary () {
+    this.props.actions.showSummary();
+  }
+
+  showCart () {
+    this.props.actions.showCart();
+  }
+
+  updateCart (id, qty) {
+    this.props.actions.updateCart(id, qty);
   }
 
   render() {
     return (
       <div className="onecart">
-        {(this.state.view === VIEW_SUMMARY)&&
+        {(this.props.view === VIEW_SUMMARY)&&
         <div className="onecart-summary">
           <h2>Summary</h2>
           <p>Cart summary</p>
@@ -54,7 +48,7 @@ class App extends Component {
           </div>
         </div>
         }
-        {(this.state.view === VIEW_CART)&&
+        {(this.props.view === VIEW_CART)&&
         <div className="onecart-cart">
           <div className="modal fade" tabIndex="-1" role="dialog" ref={(node) => this.modal = node}>
             <div className="modal-dialog" role="document">
@@ -67,13 +61,15 @@ class App extends Component {
                 </div>
                 <div className="modal-body">
                 <ul className="list-group list-group-flush">
-                {this.state.items.map((it, i) =>
+                {this.props.items.map((it, i) =>
                   <li className="list-group-item" key={i}>
                     {it.product}
                     <div className="float-right input-group" style={{width: 140}}>
-                      <input type="number" className="form-control" value={it.qty} />
+                      <input type="number" className="form-control" value={it.qty}
+                             onChange={({target:{value}}) => this.updateCart(it.id, value)} />
                       <div className="input-group-append">
-                        <button className="btn btn-outline-secondary" type="button">Remove</button>
+                        <button className="btn btn-outline-secondary" type="button"
+                                onClick={() => this.props.actions.removeCartItem(it.id)}>Remove</button>
                       </div>
                     </div>
                   </li>
@@ -94,4 +90,63 @@ class App extends Component {
   }
 }
 
-export default App;
+function showSummary() {
+  return (dispatch) => {
+    dispatch({
+      type: ACTION_SHOW_SUMMARY
+    });
+  }
+}
+
+function showCart() {
+  return (dispatch) => {
+    dispatch({
+      type: ACTION_SHOW_CART
+    });
+  }
+}
+
+function hideAll() {
+  return dispatch => {
+    dispatch({
+      type: ACTION_HIDE_CART
+    });
+  };
+}
+
+function updateCart(id, qty) {
+  return (dispatch) => {
+    dispatch({
+      type: ACTION_UPDATE_CART,
+      payload: {
+        id, qty
+      }
+    });
+  };
+}
+
+function removeCartItem(id) {
+  return (dispatch) => {
+    dispatch({
+      type: ACTION_REMOVE_ITEM,
+      payload: {
+        id
+      }
+    });
+  };
+}
+
+const mapStateToProps = (state) => {
+  return {
+    items: state.items,
+    view: state.view || VIEW_NONE
+  };
+};
+
+const mapActionsToProps = (dispatch) => {
+  return {
+    actions: bindActionCreators({showCart, showSummary, hideAll, updateCart, removeCartItem}, dispatch)
+  };
+}
+
+export default connect(mapStateToProps, mapActionsToProps)(App);
