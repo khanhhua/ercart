@@ -15,12 +15,15 @@
 %%====================================================================
 
 start(_StartType, _StartArgs) ->
+  application:ensure_all_started(mnesia, permanent),
+
   Dispatch = cowboy_router:compile([
     %% {HostMatch, list({PathMatch, Handler, InitialState})}
     {'_', [
       {"/static/demo/[...]", cowboy_static, {priv_dir, onecart, "static/demo"}},
       {"/static/lib/[...]", cowboy_static, {priv_dir, onecart, "static/lib/onecart-client/build/static"}},
       {"/:appid/api/cart", onecart_http, #{resource => 'cart'}},
+      {"/:appid/api/cart/:cartid", onecart_http, #{resource => 'cart'}},
       {"/:appid/api/products", onecart_http, #{resource => 'products'}},
       {"/:appid/api/orders", onecart_http, #{resource => 'orders'}}
     ]}
