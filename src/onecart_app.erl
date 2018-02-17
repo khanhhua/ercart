@@ -25,6 +25,7 @@ start(_StartType, _StartArgs) ->
       {"/:appid/api/cart", onecart_http, #{resource => 'cart'}},
       {"/:appid/api/cart/:cartid", onecart_http, #{resource => 'cart'}},
       {"/:appid/api/products", onecart_http, #{resource => 'products'}},
+      {"/:appid/api/products/:productid", onecart_http, #{resource => 'products'}},
       {"/:appid/api/orders", onecart_http, #{resource => 'orders'}}
     ]}
   ]),

@@ -11,4 +11,4 @@
 -record(product, {id, name}).
 -record(cart, {id, appid, items = []}).
 -record(order, {id, items = []}).
--record(order_item, {product, qty}).
+-record(order_item, {productid, productname, qty}).

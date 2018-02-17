@@ -49,8 +49,8 @@ resource_cart(Req0=#{method := <<"PUT">>}, State = #{appid := AppID}) ->
   Data = jsx:decode(Body, [return_maps]),
 
   ItemsToUpdate = lists:map(
-    fun (#{<<"product">> := Product, <<"qty">> := Qty}) ->
-      #order_item{product = Product, qty = Qty}
+    fun (#{<<"id">> := ProductID, <<"qty">> := Qty}) ->
+      #order_item{productid = ProductID, qty = Qty}
     end, Data),
   io:format("Adding item to cart: ~p Items: ~p", [CardID, ItemsToUpdate]),
   {ok, Cart} = onecart_db:update_cart(AppID, binary_to_integer(CardID), ItemsToUpdate),
@@ -61,7 +61,11 @@ resource_cart(Req0=#{method := <<"PUT">>}, State = #{appid := AppID}) ->
     #{
       <<"cid">> => Cart#cart.id,
       <<"items">> => lists:map(
-        fun (It) -> #{product => It#order_item.product, qty => It#order_item.qty} end,
+        fun (It) -> #{
+          id => It#order_item.productid,
+          name => It#order_item.productname,
+          qty => It#order_item.qty
+        } end,
         Cart#cart.items)
     }), Req0),
   {ok, Req, State};
@@ -75,7 +79,11 @@ resource_cart(Req0, State = #{appid := AppID}) ->
         #{
           <<"cid">> => Cart#cart.id,
           <<"items">> => lists:map(
-            fun (It) -> #{product => It#order_item.product, qty => It#order_item.qty} end,
+            fun (It) -> #{
+              id => It#order_item.productid,
+              name => It#order_item.productname,
+              qty => It#order_item.qty
+            } end,
             Cart#cart.items)
         }), Req0),
       {ok, Req, State};
@@ -86,6 +94,27 @@ resource_cart(Req0, State = #{appid := AppID}) ->
       {ok, Req, State}
   end.
 
+resource_products(Req0 = #{method := <<"GET">>}, State = #{appid := AppID}) ->
+  ProductID = cowboy_req:binding(productid, Req0),
+  Headers = #{<<"content-type">> => <<"application/json">>},
+  {ok,Product} = onecart_db:get_product(AppID, ProductID),
+  Req = cowboy_req:reply(200, Headers,
+    jsx:encode(#{id => Product#product.id, name => Product#product.name}), Req0),
+  {ok, Req, State};
+resource_products(Req0 = #{method := <<"POST">>}, State = #{appid := AppID}) ->
+  Headers = #{<<"content-type">> => <<"application/json">>},
+  {ok, Body, _} = cowboy_req:read_body(Req0),
+  Data = jsx:decode(Body, [return_maps]),
+
+  Product = #product{
+    id = maps:get(<<"id">>, Data),
+    name = maps:get(<<"name">>, Data)
+  },
+  {ok, Product} = onecart_db:create_product(AppID, Product),
+
+  Req = cowboy_req:reply(200, Headers,
+    jsx:encode(#{id => Product#product.id, name => Product#product.name}), Req0),
+  {ok, Req, State};
 resource_products(Req0, State = #{appid := AppID}) ->
   {ok, Products} = onecart_db:get_products(AppID, #{}),
 

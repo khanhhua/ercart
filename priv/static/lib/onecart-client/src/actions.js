@@ -72,7 +72,7 @@ export function initCart(appid) {
 
 export function updateCart(id, qty) {
   return (dispatch, getState) => {
-    const {appid} = getState();
+    const {appid, cid} = getState();
     dispatch({
       type: ACTION_UPDATE_CART,
       status: STATUS_PENDING,
@@ -81,7 +81,7 @@ export function updateCart(id, qty) {
       }
     });
 
-    fetch(`/${appid}/api/cart`, {
+    fetch(`/${appid}/api/cart/${cid}`, {
       method: 'PUT',
       body: JSON.stringify([{id, qty}]),
       cache: 'no-cache',
