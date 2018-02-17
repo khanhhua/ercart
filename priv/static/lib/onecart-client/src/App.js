@@ -67,7 +67,7 @@ class App extends Component {
                 <ul className="list-group list-group-flush">
                 {this.props.items.map((it, i) =>
                   <li className="list-group-item" key={i}>
-                    {it.product}
+                    {it.name}
                     <div className="float-right input-group" style={{width: 140}}>
                       <input type="number" className="form-control" value={it.qty}
                              onChange={({target:{value}}) => this.updateCart(it.id, value)} />

@@ -49,16 +49,18 @@ function reducer(state = {items:[]}, action) {
       };
     }
     case ACTION_UPDATE_CART: {
-      const {payload: items} = action;
+      const {payload: {cid, items}} = action;
       return {
         ...newState,
+        cid,
         items
       };
     }
     case ACTION_REMOVE_ITEM:
-      const {payload: items} = action;
+      const {payload: {cid, items}} = action;
       return {
         ...newState,
+        cid,
         items
       };
   }

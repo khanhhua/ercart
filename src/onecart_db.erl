@@ -13,7 +13,14 @@
 -include("records.hrl").
 %% API
 -export([start_link/0]).
--export([get_products/2, get_orders/2, create_cart/1, get_cart/2, update_cart/3]).
+-export([
+  create_product/2,
+  get_product/2,
+  get_products/2,
+  get_orders/2,
+  create_cart/1,
+  get_cart/2,
+  update_cart/3]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -31,6 +38,12 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+create_product(AppID, Product) ->
+  gen_server:call(?SERVER, {create_product, AppID, Product}).
+
+get_product(AppID, ProductID) ->
+  gen_server:call(?SERVER, {get_product, AppID, ProductID}).
 
 get_products(AppID, Params) ->
   Products = [
@@ -95,6 +108,10 @@ init([]) ->
     {keypos, #cart.id},
     {file, filename:join(DataDir, "cart.dat")}
   ]),
+  {ok, product} = dets:open_file(product, [
+    {keypos, #product.id},
+    {file, filename:join(DataDir, "products.dat")}
+  ]),
 
   {ok, #state{}}.
 
@@ -127,17 +144,35 @@ handle_call({get_cart, AppID, CartID}, _From, State) ->
       io:format("Anything: ~p", [Anything]),
       {reply, {error, "Could not find cart"}, State}
   end;
-handle_call({update_cart, AppID, CartID, ItemsToUpdate}, _Frome, State) ->
+handle_call({update_cart, AppID, CartID, ItemsToUpdate}, _From, State) ->
   case dets:lookup(cart, CartID) of
     [Cart] ->
-      UpdatedCart = Cart#cart{items = lists:ukeymerge(#order_item.product, ItemsToUpdate, Cart#cart.items)},
+      ItemsToUpdateWithName = lists:map(
+        fun (It) ->
+          [#product{name = ProductName}] = dets:lookup(product, It#order_item.productid),
+          It#order_item{productname = ProductName}
+        end, ItemsToUpdate),
+
+      UpdatedCart = Cart#cart{items = lists:ukeymerge(#order_item.productid, ItemsToUpdateWithName, Cart#cart.items)},
       case dets:insert(cart, UpdatedCart) of
         ok -> {reply, {ok, UpdatedCart}, State};
         {error, Reason} -> {reply, {error, Reason}, State}
       end;
     Anything ->
-      io:format("Anything: ~p", [Anything]),
+      io:format("Error: ~p", [Anything]),
       {reply, {error, "Could not find cart"}, State}
+  end;
+handle_call({create_product, AppID, Product}, _From, State) when is_record(Product, product) ->
+  case dets:insert_new(product, Product) of
+    true -> {reply, {ok, Product}, State};
+    {error, Reason} -> {reply, {error, Reason}, State}
+  end;
+handle_call({get_product, AppID, ProductID}, _From, State) ->
+  case dets:lookup(product, ProductID) of
+    [Product] -> {reply, {ok, Product}, State};
+    Anything ->
+      io:format("Error: ~p", [Anything]),
+      {reply, {error, "Could not find product"}, State}
   end;
 handle_call(_Request, _From, State) ->
   {reply, ok, State}.
@@ -188,6 +223,7 @@ handle_info(_Info, State) ->
     State :: #state{}) -> term()).
 terminate(_Reason, _State) ->
   dets:close(cart),
+  dets:close(product),
   ok.
 
 %%--------------------------------------------------------------------
