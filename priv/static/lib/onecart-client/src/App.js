@@ -96,7 +96,6 @@ class App extends Component {
 
 const mapStateToProps = (state) => {
   return {
-    cartId: state.cid,
     items: state.items,
     view: state.view || VIEW_NONE
   };

@@ -41,26 +41,24 @@ function reducer(state = {items:[]}, action) {
       };
     }
     case ACTION_INIT_CART: {
-      const {payload: {appid, cid}} = action;
+      const {payload: {appid, items}} = action;
       return {
         ...newState,
         appid,
-        cid
+        items,
       };
     }
     case ACTION_UPDATE_CART: {
-      const {payload: {cid, items}} = action;
+      const {payload: {items}} = action;
       return {
         ...newState,
-        cid,
         items
       };
     }
     case ACTION_REMOVE_ITEM:
-      const {payload: {cid, items}} = action;
+      const {payload: {items}} = action;
       return {
         ...newState,
-        cid,
         items
       };
   }

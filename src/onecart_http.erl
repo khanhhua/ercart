@@ -33,9 +33,11 @@ resource_cart(Req0=#{method := <<"POST">>}, State = #{appid := AppID}) ->
   Headers = #{<<"content-type">> => <<"application/json">>},
   case onecart_db:create_cart(AppID) of
     {ok, CartID} ->
+      EncCartID = encrypt_cartid(CartID),
+
       {ok, cowboy_req:reply(200,
         Headers,
-        jsx:encode(#{<<"cid">> => CartID}),
+        jsx:encode(#{<<"cid">> => base64:encode(EncCartID)}),
         Req0), State};
     {error, Reason} ->
       {ok, cowboy_req:reply(400,
@@ -44,7 +46,8 @@ resource_cart(Req0=#{method := <<"POST">>}, State = #{appid := AppID}) ->
         Req0), State}
   end;
 resource_cart(Req0=#{method := <<"PUT">>}, State = #{appid := AppID}) ->
-  CardID = cowboy_req:binding(cartid, Req0),
+  CardID = cart_id(Req0),
+
   {ok, Body, _} = cowboy_req:read_body(Req0),
   Data = jsx:decode(Body, [return_maps]),
 
@@ -59,7 +62,6 @@ resource_cart(Req0=#{method := <<"PUT">>}, State = #{appid := AppID}) ->
     <<"content-type">> => <<"application/json">>
   }, jsx:encode(
     #{
-      <<"cid">> => Cart#cart.id,
       <<"items">> => lists:map(
         fun (It) -> #{
           id => It#order_item.productid,
@@ -70,14 +72,14 @@ resource_cart(Req0=#{method := <<"PUT">>}, State = #{appid := AppID}) ->
     }), Req0),
   {ok, Req, State};
 resource_cart(Req0, State = #{appid := AppID}) ->
-  CardID = cowboy_req:binding(cartid, Req0),
+  CardID = cart_id(Req0),
   case onecart_db:get_cart(AppID, binary_to_integer(CardID)) of
     {ok, Cart} ->
+      io:format("CartID: ~p~n", [Cart#cart.id]),
       Req = cowboy_req:reply(200, #{
         <<"content-type">> => <<"application/json">>
       }, jsx:encode(
         #{
-          <<"cid">> => Cart#cart.id,
           <<"items">> => lists:map(
             fun (It) -> #{
               id => It#order_item.productid,
@@ -135,3 +137,27 @@ resource_orders(Req0, State = #{appid := AppID}) ->
     fun (It) -> #{id => It#order.id} end,
     Orders)), Req0),
   {ok, Req, State}.
+
+cart_id(Req0) ->
+  Based64CardID = cowboy_req:header(<<"x-onecart-cid">>, Req0),
+  io:format("Based64CardID: ~p~n", [Based64CardID]),
+  decrypt_cartid(base64:decode(Based64CardID)).
+
+encrypt_cartid(CartID) ->
+  {ok, RsaPublicPem} = application:get_env(onecart, rsa_public),
+  io:format("RsaPublicPem: ~p~n", [RsaPublicPem]),
+  {ok, RawPKey} = file:read_file(RsaPublicPem),
+
+  [EncPKey] = public_key:pem_decode(RawPKey),
+  PKey = public_key:pem_entry_decode(EncPKey),
+  public_key:encrypt_public(integer_to_binary(CartID), PKey).
+
+decrypt_cartid(EncryptedCartID) ->
+  {ok, RsaPrivatePem} = application:get_env(onecart, rsa_private),
+  io:format("RsaPrivatePem: ~p~n", [RsaPrivatePem]),
+  {ok, RawSKey} = file:read_file(RsaPrivatePem),
+
+  [EncSKey] = public_key:pem_decode(RawSKey),
+  SKey = public_key:pem_entry_decode(EncSKey),
+
+  public_key:decrypt_private(EncryptedCartID, SKey).

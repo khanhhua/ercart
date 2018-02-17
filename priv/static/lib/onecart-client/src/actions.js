@@ -41,16 +41,40 @@ export function initCart(appid) {
       status: STATUS_PENDING
     });
 
-    fetch(`/${appid}/api/cart`, {
-      method: 'POST',
-      cache: 'no-cache',
-      headers: {
-        'content-type': 'application/json'
-      },
-      mode: 'cors'
-    })
-    .then(res => res.json())
-    .then(data => {
+    const cart = new Promise((resolve, reject) => {
+      if (localStorage.getItem('onecart.cid')) {
+        return fetch(`/${appid}/api/cart`, {
+          method: 'GET',
+          cache: 'no-cache',
+          headers: {
+            'content-type': 'application/json',
+            'x-onecart-cid': localStorage.getItem('onecart.cid')
+          },
+          mode: 'cors'
+        })
+        .then(res => resolve(res.json()))
+      } else {
+        return fetch(`/${appid}/api/cart`, {
+          method: 'POST',
+          cache: 'no-cache',
+          headers: {
+            'content-type': 'application/json'
+          },
+          mode: 'cors'
+        })
+        .then(res => res.json())
+        .then(data => {
+          const {cid} = data;
+          localStorage.setItem('onecart.cid', cid);
+
+          delete data.cid;
+          resolve(data);
+        })
+        .catch(reject);
+      }
+    });
+
+    cart.then(data => {
       dispatch({
         type: ACTION_INIT_CART,
         status: STATUS_SUCCESS,
@@ -81,12 +105,13 @@ export function updateCart(id, qty) {
       }
     });
 
-    fetch(`/${appid}/api/cart/${cid}`, {
+    fetch(`/${appid}/api/cart`, {
       method: 'PUT',
       body: JSON.stringify([{id, qty}]),
       cache: 'no-cache',
       headers: {
-        'content-type': 'application/json'
+        'content-type': 'application/json',
+        'x-onecart-cid': localStorage.getItem('onecart.cid')
       },
       mode: 'cors'
     })
