@@ -71,6 +71,29 @@ resource_cart(Req0=#{method := <<"PUT">>}, State = #{appid := AppID}) ->
         Cart#cart.items)
     }), Req0),
   {ok, Req, State};
+resource_cart(Req0=#{method := <<"DELETE">>}, State = #{appid := AppID}) ->
+  CardID = cart_id(Req0),
+
+  {ok, Body, _} = cowboy_req:read_body(Req0),
+  Data = jsx:decode(Body, [return_maps]),
+
+  ProductID = maps:get(<<"id">>, Data),
+  io:format("Removing item from cart: ~p Items: ~p", [CardID, ProductID]),
+  {ok, Cart} = onecart_db:remove_cart_item(AppID, binary_to_integer(CardID), ProductID),
+
+  Req = cowboy_req:reply(200, #{
+    <<"content-type">> => <<"application/json">>
+  }, jsx:encode(
+    #{
+      <<"items">> => lists:map(
+        fun (It) -> #{
+          id => It#order_item.productid,
+          name => It#order_item.productname,
+          qty => It#order_item.qty
+        } end,
+        Cart#cart.items)
+    }), Req0),
+  {ok, Req, State};
 resource_cart(Req0, State = #{appid := AppID}) ->
   CardID = cart_id(Req0),
   case onecart_db:get_cart(AppID, binary_to_integer(CardID)) of

@@ -20,7 +20,8 @@
   get_orders/2,
   create_cart/1,
   get_cart/2,
-  update_cart/3]).
+  update_cart/3,
+  remove_cart_item/3]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -68,6 +69,9 @@ create_cart(AppID) ->
 
 get_cart(AppID, CartID) ->
   gen_server:call(?SERVER, {get_cart, AppID, CartID}).
+
+remove_cart_item(AppID, CartID, ProductID) ->
+  gen_server:call(?SERVER, {remove_cart_item, AppID, CartID, ProductID}).
 
 update_cart(AppID, CartID, ItemsToUpdate) ->
   gen_server:call(?SERVER, {update_cart, AppID, CartID, ItemsToUpdate}).
@@ -154,6 +158,22 @@ handle_call({update_cart, AppID, CartID, ItemsToUpdate}, _From, State) ->
         end, ItemsToUpdate),
 
       UpdatedCart = Cart#cart{items = lists:ukeymerge(#order_item.productid, ItemsToUpdateWithName, Cart#cart.items)},
+      case dets:insert(cart, UpdatedCart) of
+        ok -> {reply, {ok, UpdatedCart}, State};
+        {error, Reason} -> {reply, {error, Reason}, State}
+      end;
+    Anything ->
+      io:format("Error: ~p", [Anything]),
+      {reply, {error, "Could not find cart"}, State}
+  end;
+handle_call({remove_cart_item, AppID, CartID, ProductID}, _From, State) ->
+  case dets:lookup(cart, CartID) of
+    [Cart] ->
+      ItemsToUpdateWithName = lists:filter(
+        fun (It) -> It#order_item.productid =/= ProductID
+        end, Cart#cart.items),
+
+      UpdatedCart = Cart#cart{items = ItemsToUpdateWithName},
       case dets:insert(cart, UpdatedCart) of
         ok -> {reply, {ok, UpdatedCart}, State};
         {error, Reason} -> {reply, {error, Reason}, State}
