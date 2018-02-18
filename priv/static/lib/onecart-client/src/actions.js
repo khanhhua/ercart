@@ -149,7 +149,8 @@ export function removeCartItem(id) {
       body: JSON.stringify({id}),
       cache: 'no-cache',
       headers: {
-        'content-type': 'application/json'
+        'content-type': 'application/json',
+        'x-onecart-cid': localStorage.getItem('onecart.cid')
       },
       mode: 'cors'
     })
