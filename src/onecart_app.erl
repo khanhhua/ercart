@@ -21,6 +21,7 @@ start(_StartType, _StartArgs) ->
     {'_', [
       {"/static/demo/[...]", cowboy_static, {priv_dir, onecart, "static/demo"}},
       {"/static/lib/[...]", cowboy_static, {priv_dir, onecart, "static/lib/onecart-client/build/static"}},
+      {"/api/apps", onecart_http, #{resource => 'apps'}},
       {"/:appid/api/cart", onecart_http, #{resource => 'cart'}},
       {"/:appid/api/products", onecart_http, #{resource => 'products'}},
       {"/:appid/api/products/:productid", onecart_http, #{resource => 'products'}},

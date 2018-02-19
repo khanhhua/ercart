@@ -1,6 +1,10 @@
 {"1.1.0",
 [{<<"cowboy">>,{pkg,<<"cowboy">>,<<"2.2.2">>},0},
  {<<"cowlib">>,{pkg,<<"cowlib">>,<<"2.1.0">>},1},
+ {<<"hashids">>,
+  {git,"git://github.com/snaiper80/hashids-erlang.git",
+       {ref,"c6bb42ade888558635c01b40f16d1efbebd48632"}},
+  0},
  {<<"jsx">>,{pkg,<<"jsx">>,<<"2.9.0">>},0},
  {<<"ranch">>,{pkg,<<"ranch">>,<<"1.4.0">>},1}]}.
 [

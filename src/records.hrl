@@ -8,6 +8,7 @@
 %%%-------------------------------------------------------------------
 -author("khanhhua").
 
+-record(app, {id, ownerid}).
 -record(product, {id, name}).
 -record(cart, {id, appid, items = []}).
 -record(order, {id, items = []}).
