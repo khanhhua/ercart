@@ -15,6 +15,7 @@
 -export([start_link/0]).
 -export([
   create_app/1,
+  app_exists/1,
   create_product/2,
   get_product/2,
   get_products/2,
@@ -43,7 +44,8 @@
 
 create_app(OwnerID) ->
   gen_server:call(?SERVER, {create_app, OwnerID}).
-
+app_exists(AppID) ->
+  gen_server:call(?SERVER, {app_exists, AppID}).
 create_product(AppID, Product) ->
   gen_server:call(?SERVER, {create_product, AppID, Product}).
 
@@ -147,11 +149,17 @@ init([]) ->
   {stop, Reason :: term(), NewState :: #state{}}).
 handle_call({create_app, OwnerID}, _From, State) ->
   HashidsContext = State#state.hashids_ctx,
-  AppID = hashids:encode(HashidsContext, erlang:system_time()),
+  AppID = list_to_binary(hashids:encode(HashidsContext, erlang:system_time())),
 
   case dets:insert_new(app, #app{id = AppID, ownerid = OwnerID}) of
     true -> {reply, {ok, AppID}, State};
     {error, Reason} -> {reply, {error, Reason}, State}
+  end;
+handle_call({app_exists, AppID}, _From, State) ->
+  io:format("Looking up AppID: ~p...~n=>~p~n", [AppID, dets:lookup(app, AppID)]),
+  case dets:lookup(app, AppID) of
+    [_] -> {reply, true, State};
+    _ -> {reply, false, State}
   end;
 handle_call({create_cart, AppID}, _From, State) ->
   CartID = rand:uniform(1000000),
