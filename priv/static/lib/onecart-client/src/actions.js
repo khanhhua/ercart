@@ -5,10 +5,46 @@ import {
   ACTION_SHOW_CART,
   ACTION_INIT_CART,
   ACTION_HIDE_CART,
+  ACTION_CHECKOUT,
   STATUS_PENDING,
   STATUS_ERROR,
   STATUS_SUCCESS
 } from './consts';
+
+function apiGET(url) {
+  const headers = {
+    'content-type': 'application/json'
+  };
+  if (localStorage.getItem('onecart.cid')) {
+    headers['x-onecart-cid'] = localStorage.getItem('onecart.cid');
+  }
+
+  return fetch(url, {
+    method: 'GET',
+    cache: 'no-cache',
+    headers,
+    mode: 'cors'
+  })
+  .then(res => res.json());
+}
+
+function apiPOST(url, data) {
+  const headers = {
+    'content-type': 'application/json'
+  };
+  if (localStorage.getItem('onecart.cid')) {
+    headers['x-onecart-cid'] = localStorage.getItem('onecart.cid');
+  }
+
+  return fetch(url, {
+    method: 'POST',
+    body: JSON.stringify(data),
+    cache: 'no-cache',
+    headers,
+    mode: 'cors'
+  })
+  .then(res => res.json());
+}
 
 export function showSummary() {
   return (dispatch) => {
@@ -96,7 +132,7 @@ export function initCart(appid) {
 
 export function updateCart(id, qty) {
   return (dispatch, getState) => {
-    const {appid, cid} = getState();
+    const {appid} = getState();
     dispatch({
       type: ACTION_UPDATE_CART,
       status: STATUS_PENDING,
@@ -169,5 +205,33 @@ export function removeCartItem(id) {
         payload: err
       });
     });
+  };
+}
+
+export function checkout() {
+  return (dispatch, getState) => {
+    const {appid, items} = getState();
+
+    dispatch({
+      type: ACTION_CHECKOUT,
+      status: STATUS_PENDING,
+      payload: {items}
+    });
+
+    apiPOST(`/${appid}/api/checkout`, {items})
+    .then(data => {
+      dispatch({
+        type: ACTION_CHECKOUT,
+        status: STATUS_SUCCESS,
+        payload: data
+      });
+    })
+    .then(error => {
+      dispatch({
+        type: ACTION_CHECKOUT,
+        status: STATUS_ERROR,
+        payload: error
+      });
+    })
   };
 }
