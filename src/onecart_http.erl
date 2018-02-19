@@ -14,20 +14,42 @@
 %% API
 -export([init/2, terminate/3]).
 
+init(Req0, State = #{resource := apps}) ->
+  resource_apps(Req0, State);
 init(Req0, State = #{resource := Resource}) ->
   AppID = cowboy_req:binding('appid', Req0),
-  io:format("AppID: ~p~n", [AppID]),
 
-  {ok, Req, _State} = case Resource of
-                        cart -> resource_cart(Req0, State#{appid => AppID});
-                        products -> resource_products(Req0, State#{appid => AppID});
-                        orders -> resource_orders(Req0, State#{appid => AppID})
-                     end,
+%% Guard against invalid App IDs
+  {ok, Req, _State} = case onecart_db:app_exists(AppID) of
+    true -> case Resource of
+              cart -> resource_cart(Req0, State#{appid => AppID});
+              products -> resource_products(Req0, State#{appid => AppID});
+              orders -> resource_orders(Req0, State#{appid => AppID})
+            end;
+    false -> {ok, cowboy_req:reply(403, Req0), State}
+  end,
 
   {ok, Req, State}.
 
 terminate(_Reason, _Req, _State) ->
   ok.
+
+resource_apps(Req0=#{method := <<"POST">>}, State) ->
+  Headers = #{<<"content-type">> => <<"application/json">>},
+  {ok, Body, _} = cowboy_req:read_body(Req0),
+  Data = jsx:decode(Body, [return_maps]),
+
+  case onecart_db:create_app(maps:get(<<"ownerid">>, Data)) of
+    {ok, AppID} -> {ok, cowboy_req:reply(200,
+      Headers,
+      jsx:encode(#{<<"appid">> => AppID}),
+      Req0), State};
+    {error, Reason} ->
+      {ok, cowboy_req:reply(400,
+        Headers,
+        jsx:encode(#{<<"error">> => Reason}),
+        Req0), State}
+  end.
 
 resource_cart(Req0=#{method := <<"POST">>}, State = #{appid := AppID}) ->
   Headers = #{<<"content-type">> => <<"application/json">>},

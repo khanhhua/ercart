@@ -14,6 +14,8 @@
 %% API
 -export([start_link/0]).
 -export([
+  create_app/1,
+  app_exists/1,
   create_product/2,
   get_product/2,
   get_products/2,
@@ -34,12 +36,16 @@
 -define(SERVER, ?MODULE).
 -define(CART_TABLE, 'tbl_cart').
 
--record(state, {}).
+-record(state, {hashids_ctx}).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
+create_app(OwnerID) ->
+  gen_server:call(?SERVER, {create_app, OwnerID}).
+app_exists(AppID) ->
+  gen_server:call(?SERVER, {app_exists, AppID}).
 create_product(AppID, Product) ->
   gen_server:call(?SERVER, {create_product, AppID, Product}).
 
@@ -108,6 +114,11 @@ init([]) ->
   io:format("Initializing onecart_db...~n"),
 
   {ok, DataDir} = application:get_env(onecart, data_dir),
+
+  {ok, app} = dets:open_file(app, [
+    {keypos, #app.id},
+    {file, filename:join(DataDir, "apps.dat")}
+  ]),
   {ok, cart} = dets:open_file(cart, [
     {keypos, #cart.id},
     {file, filename:join(DataDir, "cart.dat")}
@@ -117,7 +128,9 @@ init([]) ->
     {file, filename:join(DataDir, "products.dat")}
   ]),
 
-  {ok, #state{}}.
+  {ok, HashidsSalt} = application:get_env(onecart, hashids_salt),
+  HashidsContext = hashids:new([{salt, HashidsSalt}, {min_hash_length, 8}]),
+  {ok, #state{hashids_ctx = HashidsContext}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -134,6 +147,20 @@ init([]) ->
   {noreply, NewState :: #state{}, timeout() | hibernate} |
   {stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
   {stop, Reason :: term(), NewState :: #state{}}).
+handle_call({create_app, OwnerID}, _From, State) ->
+  HashidsContext = State#state.hashids_ctx,
+  AppID = list_to_binary(hashids:encode(HashidsContext, erlang:system_time())),
+
+  case dets:insert_new(app, #app{id = AppID, ownerid = OwnerID}) of
+    true -> {reply, {ok, AppID}, State};
+    {error, Reason} -> {reply, {error, Reason}, State}
+  end;
+handle_call({app_exists, AppID}, _From, State) ->
+  io:format("Looking up AppID: ~p...~n=>~p~n", [AppID, dets:lookup(app, AppID)]),
+  case dets:lookup(app, AppID) of
+    [_] -> {reply, true, State};
+    _ -> {reply, false, State}
+  end;
 handle_call({create_cart, AppID}, _From, State) ->
   CartID = rand:uniform(1000000),
 
@@ -242,6 +269,7 @@ handle_info(_Info, State) ->
 -spec(terminate(Reason :: (normal | shutdown | {shutdown, term()} | term()),
     State :: #state{}) -> term()).
 terminate(_Reason, _State) ->
+  dets:close(app),
   dets:close(cart),
   dets:close(product),
   ok.
