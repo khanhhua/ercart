@@ -6,6 +6,7 @@ import {
   ACTION_INIT_CART,
   ACTION_HIDE_CART,
   ACTION_CHECKOUT,
+  ACTION_PLACE_ORDER,
   STATUS_PENDING,
   STATUS_ERROR,
   STATUS_SUCCESS
@@ -226,9 +227,38 @@ export function checkout() {
         payload: data
       });
     })
-    .then(error => {
+    .catch(error => {
       dispatch({
         type: ACTION_CHECKOUT,
+        status: STATUS_ERROR,
+        payload: error
+      });
+    })
+  };
+}
+
+export function placeOrder() {
+  return (dispatch, getState) => {
+    const {appid, order: {id}} = getState();
+
+    dispatch({
+      type: ACTION_PLACE_ORDER,
+      status: STATUS_PENDING,
+      payload: {id}
+    });
+
+    apiPOST(`/${appid}/api/orders`, {id})
+    .then(data => {
+      localStorage.setItem('onecart.cid', data.next_cid);
+      dispatch({
+        type: ACTION_PLACE_ORDER,
+        status: STATUS_SUCCESS,
+        payload: data
+      });
+    })
+    .catch(error => {
+      dispatch({
+        type: ACTION_PLACE_ORDER,
         status: STATUS_ERROR,
         payload: error
       });

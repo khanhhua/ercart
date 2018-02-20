@@ -56,8 +56,23 @@ server.post('/A12345678tom/api/checkout', (req) => {
   const {items} = data;
 
   return [200, {'content-type':'application/json'}, JSON.stringify({
-    orderid: 'O1234',
+    id: 'O1234',
     total: 2100,
-    currency: 'USD'
+    currency: 'USD',
+    items
+  })];
+});
+
+server.post('/A12345678tom/api/orders', (req) => {
+  const data = JSON.parse(req.requestBody);
+  console.log(data);
+  const {id} = data;
+
+  return [200, {'content-type':'application/json'}, JSON.stringify({
+    order: {
+      id,
+      transaction_id: Date.now(),
+    },
+    next_cid: ++cartID
   })];
 })
