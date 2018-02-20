@@ -212,14 +212,15 @@ export function removeCartItem(id) {
 export function checkout() {
   return (dispatch, getState) => {
     const {appid, items} = getState();
+    const updatedItems = items.map(it => ({...it, qty: parseInt(it.qty, 10)}));
 
     dispatch({
       type: ACTION_CHECKOUT,
       status: STATUS_PENDING,
-      payload: {items}
+      payload: {items: updatedItems}
     });
 
-    apiPOST(`/${appid}/api/checkout`, {items})
+    apiPOST(`/${appid}/api/checkout`, {items: updatedItems})
     .then(data => {
       dispatch({
         type: ACTION_CHECKOUT,

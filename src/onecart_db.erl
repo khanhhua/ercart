@@ -19,11 +19,14 @@
   create_product/2,
   get_product/2,
   get_products/2,
+  get_order/2,
   get_orders/2,
   create_cart/1,
   get_cart/2,
   update_cart/3,
-  remove_cart_item/3]).
+  remove_cart_item/3,
+  create_order/2,
+  update_order/2]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -60,6 +63,9 @@ get_products(AppID, Params) ->
 
   {ok, Products}.
 
+get_order(AppID, OrderID) ->
+  gen_server:call(?SERVER, {get_order, AppID, OrderID}).
+
 get_orders(AppID, Params) -> {ok, []}.
 
 %%--------------------------------------------------------------------
@@ -81,6 +87,12 @@ remove_cart_item(AppID, CartID, ProductID) ->
 
 update_cart(AppID, CartID, ItemsToUpdate) ->
   gen_server:call(?SERVER, {update_cart, AppID, CartID, ItemsToUpdate}).
+
+create_order(AppID, Items) ->
+  gen_server:call(?SERVER, {create_order, AppID, Items}).
+
+update_order(AppID, OrderID) ->
+  gen_server:call(?SERVER, {update_order, AppID, OrderID}).
 %%--------------------------------------------------------------------
 %% @doc
 %% Starts the server
@@ -123,6 +135,10 @@ init([]) ->
     {keypos, #cart.id},
     {file, filename:join(DataDir, "cart.dat")}
   ]),
+  {ok, order} = dets:open_file(order, [
+    {keypos, #order.id},
+    {file, filename:join(DataDir, "orders.dat")}
+  ]),
   {ok, product} = dets:open_file(product, [
     {keypos, #product.id},
     {file, filename:join(DataDir, "products.dat")}
@@ -130,6 +146,9 @@ init([]) ->
 
   {ok, HashidsSalt} = application:get_env(onecart, hashids_salt),
   HashidsContext = hashids:new([{salt, HashidsSalt}, {min_hash_length, 8}]),
+
+  quickrand:seed(),
+
   {ok, #state{hashids_ctx = HashidsContext}}.
 
 %%--------------------------------------------------------------------
@@ -180,8 +199,8 @@ handle_call({update_cart, AppID, CartID, ItemsToUpdate}, _From, State) ->
     [Cart] ->
       ItemsToUpdateWithName = lists:map(
         fun (It) ->
-          [#product{name = ProductName}] = dets:lookup(product, It#order_item.productid),
-          It#order_item{productname = ProductName}
+          [#product{name = ProductName, price = ProductPrice}] = dets:lookup(product, It#order_item.productid),
+          It#order_item{productname = ProductName, price = ProductPrice}
         end, ItemsToUpdate),
 
       UpdatedCart = Cart#cart{items = lists:ukeymerge(#order_item.productid, ItemsToUpdateWithName, Cart#cart.items)},
@@ -220,6 +239,34 @@ handle_call({get_product, AppID, ProductID}, _From, State) ->
     Anything ->
       io:format("Error: ~p", [Anything]),
       {reply, {error, "Could not find product"}, State}
+  end;
+handle_call({create_order, AppID, Items}, _From, State) ->
+  OrderID = list_to_binary(uuid:uuid_to_string(uuid:get_v4())),
+  Total = lists:foldl(
+    fun (Item, Acc) ->
+      io:format("Qty: ~p x Price: ~p", [Item#order_item.qty, Item#order_item.price]),
+      Acc + Item#order_item.qty * Item#order_item.price end,
+    0.0, Items),
+  Order = #order{id = OrderID, items = Items, total = Total},
+  case dets:insert_new(order, Order) of
+    true -> {reply, {ok, Order}, State};
+    {error, Reason} -> {reply, {error, Reason}, State}
+  end;
+handle_call({update_order, AppID, UpdatedOrder = #order{id = OrderID}}, _From, State) ->
+  case dets:lookup(order, OrderID) of
+    [#order{id = OrderID}] ->
+      case dets:insert(order, UpdatedOrder) of
+        ok -> {reply, {ok, UpdatedOrder}, State};
+        {error, Reason} -> {reply, {error, Reason}, State}
+      end;
+    Anything ->
+      io:format("Error: ~p", [Anything]),
+      {reply, {error, "Could not find order"}, State}
+  end;
+handle_call({get_order, AppID, OrderID}, _From, State) ->
+  case dets:lookup(order, OrderID) of
+    [Order] -> {reply, {ok, Order}, State};
+    {error, Reason} -> {reply, {error, Reason}, State}
   end;
 handle_call(_Request, _From, State) ->
   {reply, ok, State}.
@@ -272,6 +319,7 @@ terminate(_Reason, _State) ->
   dets:close(app),
   dets:close(cart),
   dets:close(product),
+  dets:close(orders),
   ok.
 
 %%--------------------------------------------------------------------

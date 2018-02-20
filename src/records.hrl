@@ -9,7 +9,7 @@
 -author("khanhhua").
 
 -record(app, {id, ownerid}).
--record(product, {id, name}).
+-record(product, {id, name, price}).
 -record(cart, {id, appid, items = []}).
--record(order, {id, items = []}).
--record(order_item, {productid, productname, qty}).
+-record(order, {id, transactionid, items = [], total}).
+-record(order_item, {productid, productname, qty, price}).
