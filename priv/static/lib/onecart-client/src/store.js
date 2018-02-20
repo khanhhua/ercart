@@ -1,13 +1,15 @@
 import { createStore, applyMiddleware } from 'redux';
 import thunk from 'redux-thunk';
-import {VIEW_CART, VIEW_NONE, VIEW_SUMMARY} from './consts';
+import {VIEW_CART, VIEW_NONE, VIEW_SUMMARY, VIEW_ORDER, VIEW_THANK_YOU} from './consts';
 import {
   ACTION_HIDE_CART,
   ACTION_INIT_CART,
   ACTION_UPDATE_CART,
   ACTION_SHOW_SUMMARY,
   ACTION_SHOW_CART,
-  ACTION_REMOVE_ITEM
+  ACTION_REMOVE_ITEM,
+  ACTION_CHECKOUT,
+  ACTION_PLACE_ORDER
 } from './consts';
 import {STATUS_SUCCESS} from './consts';
 
@@ -55,12 +57,30 @@ function reducer(state = {items:[]}, action) {
         items
       };
     }
-    case ACTION_REMOVE_ITEM:
+    case ACTION_REMOVE_ITEM: {
       const {payload: {items}} = action;
       return {
         ...newState,
         items
       };
+    }
+    case ACTION_CHECKOUT: {
+      const {payload: order} = action;
+      return {
+        ...newState,
+        view: VIEW_ORDER,
+        order,
+        items: [],
+      };
+    }
+    case ACTION_PLACE_ORDER: {
+      const {payload: {order}} = action;
+      return {
+        ...newState,
+        view: VIEW_THANK_YOU,
+        order,
+      };
+    }
   }
 
   return newState;

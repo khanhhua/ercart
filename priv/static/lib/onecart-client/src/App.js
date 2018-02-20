@@ -4,8 +4,8 @@ import {bindActionCreators} from 'redux';
 import ReactDOM from 'react-dom';
 // import logo from './logo.svg';
 import './App.css';
-import {VIEW_NONE, VIEW_CART, VIEW_SUMMARY} from './consts';
-import {showCart, showSummary, hideAll, initCart, updateCart, removeCartItem} from './actions';
+import {VIEW_NONE, VIEW_CART, VIEW_SUMMARY, VIEW_ORDER, VIEW_THANK_YOU} from './consts';
+import {showCart, showSummary, hideAll, initCart, updateCart, removeCartItem, checkout, placeOrder} from './actions';
 
 class App extends Component {
   componentDidMount() {
@@ -13,7 +13,7 @@ class App extends Component {
   }
 
   componentDidUpdate() {
-    if (this.props.view === VIEW_CART) {
+    if (this.props.view === VIEW_CART || this.props.view === VIEW_ORDER || this.props.view === VIEW_THANK_YOU) {
       const node = ReactDOM.findDOMNode(this.modal);
       node.style = 'display:block;';
 
@@ -23,20 +23,32 @@ class App extends Component {
     }
   }
 
-  hideAll () {
+  hideAll() {
     this.props.actions.hideAll();
   }
 
-  showSummary () {
+  showSummary() {
     this.props.actions.showSummary();
   }
 
-  showCart () {
+  showCart() {
     this.props.actions.showCart();
   }
 
-  updateCart (id, qty) {
+  updateCart(id, qty) {
     this.props.actions.updateCart(id, qty);
+  }
+
+  checkout() {
+    this.props.actions.checkout();
+  }
+
+  pay() {
+    // TODO Implement payment
+  }
+
+  placeOrder() {
+    this.props.actions.placeOrder();
   }
 
   render() {
@@ -81,7 +93,75 @@ class App extends Component {
                 </ul>
                 </div>
                 <div className="modal-footer">
-                  <button type="button" className="btn btn-primary">Check out now!</button>
+                  <button type="button" className="btn btn-primary" onClick={() => this.checkout()}>Check out now!</button>
+                  <button type="button" className="btn btn-secondary" onClick={() => this.hideAll()}>Close</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        }
+        {this.props.view === VIEW_ORDER &&
+        <div className="onecart-order">
+          <div className="modal fade" tabIndex="-1" role="dialog" ref={(node) => this.modal = node}>
+            <div className="modal-dialog" role="document">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Your cart</h5>
+                  <button type="button" className="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                  </button>
+                </div>
+                <div className="modal-body">
+                <ul className="list-group list-group-flush">
+                {this.props.order.items.map((it, i) =>
+                  <li className="list-group-item" key={i}>
+                    {it.name}
+                    <div className="float-right">
+                    {it.qty}
+                    </div>
+                  </li>
+                )}
+                </ul>
+                <dl className="row text-right mt-3">
+                  <dt className="col-8">Total</dt>
+                  <dd className="col-4">{this.props.order.total} {this.props.order.currency}</dd>
+                </dl>
+                </div>
+                <div className="modal-footer">
+                  {process.env.FEAT_PAYMENT &&
+                  <button type="button" className="btn btn-success" onClick={() => this.pay()}>
+                  Make payment
+                  </button>
+                  }
+                  {!process.env.FEAT_PAYMENT &&
+                  <button type="button" className="btn btn-success" onClick={() => this.placeOrder()}>
+                  Place order
+                  </button>
+                  }
+                  <button type="button" className="btn btn-secondary" onClick={() => this.hideAll()}>Close</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        }
+        {(this.props.view === VIEW_THANK_YOU)&&
+        <div className="onecart-thank-you">
+          <div className="modal fade" tabIndex="-1" role="dialog" ref={(node) => this.modal = node}>
+            <div className="modal-dialog" role="document">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Your cart</h5>
+                  <button type="button" className="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                  </button>
+                </div>
+                <div className="modal-body">
+                  <p>Thank you!</p>
+                  <p>Your transaction ID: <span>{this.props.order.transaction_id}</span></p>
+                </div>
+                <div className="modal-footer">
                   <button type="button" className="btn btn-secondary" onClick={() => this.hideAll()}>Close</button>
                 </div>
               </div>
@@ -96,6 +176,7 @@ class App extends Component {
 
 const mapStateToProps = (state) => {
   return {
+    order: state.order,
     items: state.items,
     view: state.view || VIEW_NONE
   };
@@ -103,7 +184,16 @@ const mapStateToProps = (state) => {
 
 const mapActionsToProps = (dispatch) => {
   return {
-    actions: bindActionCreators({showCart, showSummary, hideAll, initCart, updateCart, removeCartItem}, dispatch)
+    actions: bindActionCreators({
+      showCart,
+      showSummary,
+      hideAll,
+      initCart,
+      updateCart,
+      removeCartItem,
+      checkout,
+      placeOrder
+    }, dispatch)
   };
 }
 

@@ -23,6 +23,7 @@ init(Req0, State = #{resource := Resource}) ->
   {ok, Req, _State} = case onecart_db:app_exists(AppID) of
     true -> case Resource of
               cart -> resource_cart(Req0, State#{appid => AppID});
+              checkout -> action_checkout(Req0, State#{appid => AppID});
               products -> resource_products(Req0, State#{appid => AppID});
               orders -> resource_orders(Req0, State#{appid => AppID})
             end;
@@ -88,7 +89,8 @@ resource_cart(Req0=#{method := <<"PUT">>}, State = #{appid := AppID}) ->
         fun (It) -> #{
           id => It#order_item.productid,
           name => It#order_item.productname,
-          qty => It#order_item.qty
+          qty => It#order_item.qty,
+          price => It#order_item.price
         } end,
         Cart#cart.items)
     }), Req0),
@@ -111,7 +113,8 @@ resource_cart(Req0=#{method := <<"DELETE">>}, State = #{appid := AppID}) ->
         fun (It) -> #{
           id => It#order_item.productid,
           name => It#order_item.productname,
-          qty => It#order_item.qty
+          qty => It#order_item.qty,
+          price => It#order_item.price
         } end,
         Cart#cart.items)
     }), Req0),
@@ -129,9 +132,53 @@ resource_cart(Req0, State = #{appid := AppID}) ->
             fun (It) -> #{
               id => It#order_item.productid,
               name => It#order_item.productname,
-              qty => It#order_item.qty
+              qty => It#order_item.qty,
+              price => It#order_item.price
             } end,
             Cart#cart.items)
+        }), Req0),
+      {ok, Req, State};
+    {error, Reason} ->
+      Req = cowboy_req:reply(400, #{
+        <<"content-type">> => <<"application/json">>
+      }, jsx:encode(list_to_binary(Reason)), Req0),
+      {ok, Req, State}
+  end.
+
+action_checkout(Req0 = #{method := <<"POST">>}, State = #{appid := AppID}) ->
+%%  CardID = cart_id(Req0),
+
+  {ok, Body, _} = cowboy_req:read_body(Req0),
+  Data = jsx:decode(Body, [return_maps]),
+  Items = maps:get(<<"items">>, Data),
+
+  OrderItems = lists:map(
+    fun (It) ->
+      #order_item{
+        productid = maps:get(<<"id">>, It),
+        productname = maps:get(<<"name">>, It),
+        qty = maps:get(<<"qty">>, It),
+        price = maps:get(<<"price">>, It)
+      }
+    end, Items),
+  case onecart_db:create_order(AppID, OrderItems) of
+    {ok, Order} ->
+      io:format("OrderID: ~p~n", [Order#order.id]),
+      Req = cowboy_req:reply(200, #{
+        <<"content-type">> => <<"application/json">>
+      }, jsx:encode(
+        #{
+          <<"id">> => Order#order.id,
+          <<"total">> => Order#order.total,
+          <<"currency">> => <<"USD">>,
+          <<"items">> => lists:map(
+            fun (It) -> #{
+              id => It#order_item.productid,
+              name => It#order_item.productname,
+              qty => It#order_item.qty,
+              price => It#order_item.price
+            } end,
+            Order#order.items)
         }), Req0),
       {ok, Req, State};
     {error, Reason} ->
@@ -155,12 +202,17 @@ resource_products(Req0 = #{method := <<"POST">>}, State = #{appid := AppID}) ->
 
   Product = #product{
     id = maps:get(<<"id">>, Data),
-    name = maps:get(<<"name">>, Data)
+    name = maps:get(<<"name">>, Data),
+    price = maps:get(<<"price">>, Data)
   },
   {ok, Product} = onecart_db:create_product(AppID, Product),
 
   Req = cowboy_req:reply(200, Headers,
-    jsx:encode(#{id => Product#product.id, name => Product#product.name}), Req0),
+    jsx:encode(#{
+      id => Product#product.id,
+      name => Product#product.name,
+      price => Product#product.price
+    }), Req0),
   {ok, Req, State};
 resource_products(Req0, State = #{appid := AppID}) ->
   {ok, Products} = onecart_db:get_products(AppID, #{}),
@@ -168,11 +220,45 @@ resource_products(Req0, State = #{appid := AppID}) ->
   Req = cowboy_req:reply(200, #{
     <<"content-type">> => <<"application/json">>
   }, jsx:encode(lists:map(
-    fun (It) -> #{id => It#product.id, name => It#product.name} end,
-    Products)
+    fun (It) ->
+      #{
+        id => It#product.id,
+        name => It#product.name,
+        price => It#order_item.price
+      }
+    end, Products)
   ), Req0),
   {ok, Req, State}.
 
+resource_orders(Req0 = #{method := <<"POST">>}, State = #{appid := AppID, hashids_ctx := HashidsContext}) ->
+  {ok, Body, _} = cowboy_req:read_body(Req0),
+  Data = jsx:decode(Body, [return_maps]),
+  Id = maps:get(<<"id">>, Data),
+
+  case onecart_db:get_order(AppID, Id) of
+    {ok, Order} ->
+      TxID = list_to_binary(hashids:encode(HashidsContext, erlang:system_time())),
+      {ok, _Order} = onecart_db:update_order(AppID, Order#order{transactionid = TxID}),
+
+      {ok, CardID} = onecart_db:create_cart(AppID),
+      EncCardID = encrypt_cartid(CardID),
+      Req = cowboy_req:reply(200, #{
+        <<"content-type">> => <<"application/json">>
+      }, jsx:encode(
+        #{
+          <<"order">> => #{
+            <<"id">> => Order#order.id,
+            <<"transaction_id">> => TxID
+          },
+          <<"next_cid">> => base64:encode(EncCardID)
+        }), Req0),
+      {ok, Req, State};
+    {error, Reason} ->
+      Req = cowboy_req:reply(400, #{
+        <<"content-type">> => <<"application/json">>
+      }, jsx:encode(list_to_binary(Reason)), Req0),
+      {ok, Req, State}
+  end;
 resource_orders(Req0, State = #{appid := AppID}) ->
   {ok, Orders} = onecart_db:get_orders(AppID, #{}),
 

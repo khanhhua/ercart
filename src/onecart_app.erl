@@ -15,6 +15,8 @@
 %%====================================================================
 
 start(_StartType, _StartArgs) ->
+  {ok, HashidsSalt} = application:get_env(onecart, hashids_salt),
+  HashidsContext = hashids:new([{salt, HashidsSalt}, {min_hash_length, 8}]),
 
   Dispatch = cowboy_router:compile([
     %% {HostMatch, list({PathMatch, Handler, InitialState})}
@@ -25,7 +27,8 @@ start(_StartType, _StartArgs) ->
       {"/:appid/api/cart", onecart_http, #{resource => 'cart'}},
       {"/:appid/api/products", onecart_http, #{resource => 'products'}},
       {"/:appid/api/products/:productid", onecart_http, #{resource => 'products'}},
-      {"/:appid/api/orders", onecart_http, #{resource => 'orders'}}
+      {"/:appid/api/checkout", onecart_http, #{resource => 'checkout'}},
+      {"/:appid/api/orders", onecart_http, #{resource => 'orders', hashids_ctx => HashidsContext}}
     ]}
   ]),
   %% Name, NbAcceptors, TransOpts, ProtoOpts
