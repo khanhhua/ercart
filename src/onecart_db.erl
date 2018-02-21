@@ -49,7 +49,7 @@
 create_app(OwnerID) ->
   gen_server:call(?SERVER, {create_app, OwnerID}).
 get_app(AppID) ->
-  gen_server:call(?SERVER, {create_app, AppID}).
+  gen_server:call(?SERVER, {get_app, AppID}).
 app_exists(AppID) ->
   gen_server:call(?SERVER, {app_exists, AppID}).
 create_product(AppID, Product) ->
@@ -169,11 +169,11 @@ init([]) ->
   {noreply, NewState :: #state{}, timeout() | hibernate} |
   {stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
   {stop, Reason :: term(), NewState :: #state{}}).
-handle_call({create_app, OwnerID}, _From, State) ->
+handle_call({create_app, App}, _From, State) ->
   HashidsContext = State#state.hashids_ctx,
   AppID = list_to_binary(hashids:encode(HashidsContext, erlang:system_time())),
 
-  case dets:insert_new(app, #app{id = AppID, ownerid = OwnerID}) of
+  case dets:insert_new(app, App#app{id = AppID}) of
     true -> {reply, {ok, AppID}, State};
     {error, Reason} -> {reply, {error, Reason}, State}
   end;

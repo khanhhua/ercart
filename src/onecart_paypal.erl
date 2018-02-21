@@ -26,7 +26,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {appid, userid, password, signature}).
+-record(state, {base_url, appid, userid, password, signature}).
 
 %%%===================================================================
 %%% API
@@ -44,8 +44,8 @@ start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 
-pay(AppID, Order) when is_record(Order, order) ->
-  gen_server:call({pay, AppID, Order}).
+pay(App, Order) when is_record(Order, order) ->
+  gen_server:call(?SERVER, {pay, App, Order}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -66,11 +66,21 @@ pay(AppID, Order) when is_record(Order, order) ->
     {ok, State :: #state{}} | {ok, State :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term()} | ignore).
 init([]) ->
+  {ok, BaseURL} = application:get_env(onecart, base_url),
   {ok, PaypalAppID} = application:get_env(onecart, paypal_appid),
   {ok, UserID} = application:get_env(onecart, paypal_userid),
   {ok, Password} = application:get_env(onecart, paypal_password),
   {ok, Signature} = application:get_env(onecart, paypal_signature),
-  {ok, #state{appid = PaypalAppID, userid = UserID, password = Password, signature = Signature}}.
+
+  io:format("Initializing paypal gen_server (~p)~n", [PaypalAppID]),
+
+  {ok, #state{
+    base_url = BaseURL,
+    appid = PaypalAppID,
+    userid = UserID,
+    password = Password,
+    signature = Signature
+  }}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -87,7 +97,7 @@ init([]) ->
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
     {stop, Reason :: term(), NewState :: #state{}}).
-handle_call({pay, App, Order}, _From, State=#state{appid = PaypalAppID, userid = UserID, password = Password, signature = Signature}) ->
+handle_call({pay, App, Order}, _From, State=#state{base_url = BaseURL, appid = PaypalAppID, userid = UserID, password = Password, signature = Signature}) ->
   Url = <<"https://svcs.sandbox.paypal.com/AdaptivePayments/Pay">>,
   Headers = [
     {<<"X-PAYPAL-SECURITY-USERID">>, UserID},
@@ -108,8 +118,10 @@ handle_call({pay, App, Order}, _From, State=#state{appid = PaypalAppID, userid =
         email => App#app.paypal_merchant_id
       }]
     },
-    returnUrl => App#app.payment_return_url,
-    cancelUrl => App#app.payment_cancel_url,
+    returnUrl => iolist_to_binary(io_lib:format("~s/~s/api/complete-payment?tx=~s",
+        [BaseURL, binary_to_list(App#app.id), binary_to_list(Order#order.transactionid)])),
+    cancelUrl => iolist_to_binary(io_lib:format("~s/~s/api/cancel-payment?tx=~s",
+        [BaseURL, binary_to_list(App#app.id), binary_to_list(Order#order.transactionid)])),
     requestEnvelope => #{
       errorLanguage => <<"en_US">>,
       detailLevel => <<"ReturnAll">>
@@ -117,12 +129,14 @@ handle_call({pay, App, Order}, _From, State=#state{appid = PaypalAppID, userid =
   }),
   case hackney:request(post, Url, Headers, Payload, []) of
     {ok, _StatusCode, _Headers, ClientRef} ->
-      {ok, Body} = hackey:body(ClientRef),
+      {ok, Body} = hackney:body(ClientRef),
       Data = jsx:decode(Body),
 
+      io:format("Body: ~p", [Body]),
+
       Payment = #payment{
-        paykey = maps:get(<<"payKey">>, Data),
-        status = maps:get(<<"paymentExecStatus">>, Data)
+        paykey = proplists:get_value(<<"payKey">>, Data),
+        status = proplists:get_value(<<"paymentExecStatus">>, Data)
       },
       {reply, {ok, Payment}, State};
     {error, Reason} ->

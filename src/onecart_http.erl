@@ -40,8 +40,12 @@ resource_apps(Req0=#{method := <<"POST">>}, State) ->
   Headers = #{<<"content-type">> => <<"application/json">>},
   {ok, Body, _} = cowboy_req:read_body(Req0),
   Data = jsx:decode(Body, [return_maps]),
+  App = #app{
+    ownerid = maps:get(<<"ownerid">>, Data),
+    paypal_merchant_id = maps:get(<<"paypal_merchant_id">>, Data)
+  },
 
-  case onecart_db:create_app(maps:get(<<"ownerid">>, Data)) of
+  case onecart_db:create_app(App) of
     {ok, AppID} -> {ok, cowboy_req:reply(200,
       Headers,
       jsx:encode(#{<<"appid">> => AppID}),
