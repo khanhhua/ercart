@@ -16,6 +16,7 @@
 -export([
   create_app/1,
   app_exists/1,
+  get_app/1,
   create_product/2,
   get_product/2,
   get_products/2,
@@ -47,6 +48,8 @@
 
 create_app(OwnerID) ->
   gen_server:call(?SERVER, {create_app, OwnerID}).
+get_app(AppID) ->
+  gen_server:call(?SERVER, {create_app, AppID}).
 app_exists(AppID) ->
   gen_server:call(?SERVER, {app_exists, AppID}).
 create_product(AppID, Product) ->
@@ -173,6 +176,13 @@ handle_call({create_app, OwnerID}, _From, State) ->
   case dets:insert_new(app, #app{id = AppID, ownerid = OwnerID}) of
     true -> {reply, {ok, AppID}, State};
     {error, Reason} -> {reply, {error, Reason}, State}
+  end;
+handle_call({get_app, AppID}, _From, State) ->
+  case dets:lookup(app, AppID) of
+    [App] -> {reply, {ok, App}, State};
+    Anything ->
+      io:format("Anything: ~p", [Anything]),
+      {reply, {error, "Could not find app"}, State}
   end;
 handle_call({app_exists, AppID}, _From, State) ->
   io:format("Looking up AppID: ~p...~n=>~p~n", [AppID, dets:lookup(app, AppID)]),

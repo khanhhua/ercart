@@ -24,6 +24,7 @@ init(Req0, State = #{resource := Resource}) ->
     true -> case Resource of
               cart -> resource_cart(Req0, State#{appid => AppID});
               checkout -> action_checkout(Req0, State#{appid => AppID});
+              pay -> action_pay(Req0, State#{appid => AppID});
               products -> resource_products(Req0, State#{appid => AppID});
               orders -> resource_orders(Req0, State#{appid => AppID})
             end;
@@ -187,6 +188,23 @@ action_checkout(Req0 = #{method := <<"POST">>}, State = #{appid := AppID}) ->
       }, jsx:encode(list_to_binary(Reason)), Req0),
       {ok, Req, State}
   end.
+
+action_pay(Req0 = #{method := <<"POST">>}, State = #{appid := AppID}) ->
+  {ok, App} = onecart_db:get_app(AppID),
+  {ok, Body, _} = cowboy_req:read_body(Req0),
+  Data = jsx:decode(Body, [return_maps]),
+  OrderID = maps:get(<<"id">>, Data),
+  _TxID = maps:get(<<"transaction_id">>, Data),
+
+  {ok, Order} = onecart_db:get_order(AppID, OrderID),
+  {ok, Payment} = onecart_paypal:pay(App, Order),
+  Headers = #{<<"content-type">> => <<"application/json">>},
+  Req = cowboy_req:reply(200, Headers, jsx:encode(#{
+    method => <<"paypal">>,
+    payment_url => iolist_to_binary(io_lib:format("https://www.sandbox.paypal.com/cgi-bin/webscr?cmd=_ap-payment&paykey=~s", [Payment#payment.paykey]))
+  }), Req0),
+
+  {ok, Req, State}.
 
 resource_products(Req0 = #{method := <<"GET">>}, State = #{appid := AppID}) ->
   ProductID = cowboy_req:binding(productid, Req0),
