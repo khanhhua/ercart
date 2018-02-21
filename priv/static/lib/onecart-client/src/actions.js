@@ -266,3 +266,54 @@ export function placeOrder() {
     })
   };
 }
+
+export function pay() {
+  return (dispatch, getState) => {
+    const {appid, order: {id, transaction_id}} = getState();
+
+    dispatch({
+      type: ACTION_PAY,
+      status: STATUS_PENDING,
+      payload: {id, transaction_id}
+    });
+
+    apiPOST(`/${appid}/api/pay`, {id})
+    .then(data => {
+      debugger
+
+      const {
+        payment_url: paymentUrl
+      } = data;
+      const iframe = document.querySelector('.onecart iframe');
+      iframe.src = paymentUrl;
+
+      window.addEventListener('message', (message) => {
+        let payload;
+        if (message === 'onecart.paypal.complete') {
+          payload = {
+            status: 'complete'
+          };
+        } else if (message === 'onecart.paypal.cancel') {
+          payload = {
+            status: 'cancelled'
+          };
+        } else {
+          return;
+        }
+
+        dispatch({
+          type: ACTION_PAY,
+          status: STATUS_SUCCESS,
+          payload
+        });
+      });
+    })
+    .catch(error => {
+      dispatch({
+        type: ACTION_PAY,
+        status: STATUS_ERROR,
+        payload: error
+      });
+    });
+  };
+}

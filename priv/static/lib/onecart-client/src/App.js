@@ -5,7 +5,17 @@ import ReactDOM from 'react-dom';
 // import logo from './logo.svg';
 import './App.css';
 import {VIEW_NONE, VIEW_CART, VIEW_SUMMARY, VIEW_ORDER, VIEW_THANK_YOU} from './consts';
-import {showCart, showSummary, hideAll, initCart, updateCart, removeCartItem, checkout, placeOrder} from './actions';
+import {
+  showCart,
+  showSummary,
+  hideAll,
+
+  initCart,
+  updateCart,
+  removeCartItem,
+  checkout,
+  placeOrder,
+  pay } from './actions';
 
 class App extends Component {
   componentDidMount() {
@@ -45,6 +55,7 @@ class App extends Component {
 
   pay() {
     // TODO Implement payment
+    this.props.actions.pay();
   }
 
   placeOrder() {
@@ -192,7 +203,8 @@ const mapActionsToProps = (dispatch) => {
       updateCart,
       removeCartItem,
       checkout,
-      placeOrder
+      placeOrder,
+      pay
     }, dispatch)
   };
 }
