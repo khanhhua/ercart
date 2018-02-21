@@ -25,6 +25,8 @@ init(Req0, State = #{resource := Resource}) ->
               cart -> resource_cart(Req0, State#{appid => AppID});
               checkout -> action_checkout(Req0, State#{appid => AppID});
               pay -> action_pay(Req0, State#{appid => AppID});
+              complete_payment -> action_complete_payment(Req0, State#{appid => AppID});
+              cancel_payment -> action_cancel_payment(Req0, State#{appid => AppID});
               products -> resource_products(Req0, State#{appid => AppID});
               orders -> resource_orders(Req0, State#{appid => AppID})
             end;
@@ -198,7 +200,6 @@ action_pay(Req0 = #{method := <<"POST">>}, State = #{appid := AppID}) ->
   {ok, Body, _} = cowboy_req:read_body(Req0),
   Data = jsx:decode(Body, [return_maps]),
   OrderID = maps:get(<<"id">>, Data),
-  _TxID = maps:get(<<"transaction_id">>, Data),
 
   {ok, Order} = onecart_db:get_order(AppID, OrderID),
   {ok, Payment} = onecart_paypal:pay(App, Order),
@@ -209,6 +210,36 @@ action_pay(Req0 = #{method := <<"POST">>}, State = #{appid := AppID}) ->
   }), Req0),
 
   {ok, Req, State}.
+
+action_complete_payment(Req0 = #{method := <<"GET">>}, State = #{appid := AppID}) ->
+  #{tx := TxID} = cowboy_req:match_qs([tx], Req0),
+  case onecart_db:get_order(AppID, {transactionid, TxID}) of
+    {ok, Order} ->
+      {ok, _Order} = onecart_db:update_order(AppID, Order#order{status = complete}),
+
+      Req = cowboy_req:reply(200, #{}, <<"DONE!">>, Req0),
+      {ok, Req, State};
+    {error, Reason} ->
+      Req = cowboy_req:reply(400, #{
+      <<"content-type">> => <<"application/json">>
+      }, jsx:encode(list_to_binary(Reason)), Req0),
+      {ok, Req, State}
+  end.
+
+action_cancel_payment(Req0 = #{method := <<"GET">>}, State = #{appid := AppID}) ->
+  #{tx := TxID} = cowboy_req:match_qs([tx], Req0),
+  case onecart_db:get_order(AppID, {transactionid, TxID}) of
+    {ok, Order} ->
+      {ok, _Order} = onecart_db:update_order(AppID, Order#order{status = cancelled}),
+
+      Req = cowboy_req:reply(200, #{}, <<"CANCELLED!">>, Req0),
+      {ok, Req, State};
+    {error, Reason} ->
+      Req = cowboy_req:reply(400, #{
+        <<"content-type">> => <<"application/json">>
+      }, jsx:encode(list_to_binary(Reason)), Req0),
+      {ok, Req, State}
+  end.
 
 resource_products(Req0 = #{method := <<"GET">>}, State = #{appid := AppID}) ->
   ProductID = cowboy_req:binding(productid, Req0),
