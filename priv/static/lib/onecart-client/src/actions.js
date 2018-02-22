@@ -302,6 +302,8 @@ export function pay() {
         }
       });
 
+      window.open(payment.payment_url);
+
       window.addEventListener('message', (e) => {
         let message = e.data;
         let payload;

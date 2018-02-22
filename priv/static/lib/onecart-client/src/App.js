@@ -165,8 +165,9 @@ class App extends Component {
                 <div className="modal-header">
                   <h5 className="modal-title">Payment</h5>
                 </div>
-                <div className="modal-body embed-responsive embed-responsive-16by9">
-                  <iframe src={this.props.payment.paymentUrl} className="embed-responsive-item" />
+                <div className="modal-body">
+                  <p>You&apos;ve been redirected to PayPal page...</p>
+                  <p>Please finalize your payment. Thank you!</p>
                 </div>
                 <div className="modal-footer">
                   <button type="button" className="btn btn-secondary" onClick={() => this.hideAll()}>Close</button>

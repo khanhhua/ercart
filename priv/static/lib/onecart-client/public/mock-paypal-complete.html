@@ -7,8 +7,9 @@
 <body>
   DONE!
   <script>
-  if (window.parent) {
-    window.parent.postMessage('onecart.paypal.complete', '*');
+  if (window.opener) {
+    window.opener.postMessage('onecart.paypal.complete','*');
+    setTimeout(function () { window.close() }, 300);
   }
   </script>
 </body>

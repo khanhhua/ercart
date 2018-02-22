@@ -218,7 +218,12 @@ action_complete_payment(Req0 = #{method := <<"GET">>}, State = #{appid := AppID}
     {ok, Order} ->
       {ok, _Order} = onecart_db:update_order(AppID, Order#order{status = complete}),
 
-      Req = cowboy_req:reply(200, #{}, <<"DONE!">>, Req0),
+      Req = cowboy_req:reply(200, #{},
+        <<"<script>
+        window.opener.postMessage('onecart.paypal.complete','*');
+        setTimeout(function () { window.close() }, 300);
+        </script>">>,
+        Req0),
       {ok, Req, State};
     {error, Reason} ->
       Req = cowboy_req:reply(400, #{
@@ -233,7 +238,12 @@ action_cancel_payment(Req0 = #{method := <<"GET">>}, State = #{appid := AppID}) 
     {ok, Order} ->
       {ok, _Order} = onecart_db:update_order(AppID, Order#order{status = cancelled}),
 
-      Req = cowboy_req:reply(200, #{}, <<"CANCELLED!">>, Req0),
+      Req = cowboy_req:reply(200, #{},
+        <<"<script>
+        window.opener.postMessage('onecart.paypal.cancel','*');
+        setTimeout(function () { window.close() }, 300);
+        </script>">>,
+        Req0),
       {ok, Req, State};
     {error, Reason} ->
       Req = cowboy_req:reply(400, #{
