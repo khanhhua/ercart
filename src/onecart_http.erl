@@ -205,6 +205,7 @@ action_pay(Req0 = #{method := <<"POST">>}, State = #{appid := AppID}) ->
   {ok, Payment} = onecart_paypal:pay(App, Order),
   Headers = #{<<"content-type">> => <<"application/json">>},
   Req = cowboy_req:reply(200, Headers, jsx:encode(#{
+    transaction_id => Order#order.transactionid,
     method => <<"paypal">>,
     payment_url => iolist_to_binary(io_lib:format("https://www.sandbox.paypal.com/cgi-bin/webscr?cmd=_ap-payment&paykey=~s", [Payment#payment.paykey]))
   }), Req0),

@@ -4,7 +4,7 @@ import {bindActionCreators} from 'redux';
 import ReactDOM from 'react-dom';
 // import logo from './logo.svg';
 import './App.css';
-import {VIEW_NONE, VIEW_CART, VIEW_SUMMARY, VIEW_ORDER, VIEW_THANK_YOU} from './consts';
+import {VIEW_NONE, VIEW_CART, VIEW_SUMMARY, VIEW_ORDER, VIEW_PAYMENT, VIEW_THANK_YOU, VIEW_PAYMENT_CANCELLED} from './consts';
 import {
   showCart,
   showSummary,
@@ -23,7 +23,7 @@ class App extends Component {
   }
 
   componentDidUpdate() {
-    if (this.props.view === VIEW_CART || this.props.view === VIEW_ORDER || this.props.view === VIEW_THANK_YOU) {
+    if (this.props.view !== VIEW_NONE && this.props.view !== VIEW_SUMMARY) {
       const node = ReactDOM.findDOMNode(this.modal);
       node.style = 'display:block;';
 
@@ -157,6 +157,26 @@ class App extends Component {
           </div>
         </div>
         }
+        {(this.props.view === VIEW_PAYMENT)&&
+        <div className="onecart-payment">
+          <div className="modal fade" tabIndex="-1" role="dialog" ref={(node) => this.modal = node}>
+            <div className="modal-dialog modal-lg" role="document">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Payment</h5>
+                </div>
+                <div className="modal-body embed-responsive embed-responsive-16by9">
+                  <iframe src={this.props.payment.paymentUrl} className="embed-responsive-item" />
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={() => this.hideAll()}>Close</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        }
+
         {(this.props.view === VIEW_THANK_YOU)&&
         <div className="onecart-thank-you">
           <div className="modal fade" tabIndex="-1" role="dialog" ref={(node) => this.modal = node}>
@@ -180,6 +200,28 @@ class App extends Component {
           </div>
         </div>
         }
+        {(this.props.view === VIEW_PAYMENT_CANCELLED)&&
+          <div className="onecart-payment--cancelled">
+            <div className="modal fade" tabIndex="-1" role="dialog" ref={(node) => this.modal = node}>
+              <div className="modal-dialog" role="document">
+                <div className="modal-content">
+                  <div className="modal-header">
+                    <h5 className="modal-title">Your cart</h5>
+                    <button type="button" className="close" data-dismiss="modal" aria-label="Close">
+                      <span aria-hidden="true">&times;</span>
+                    </button>
+                  </div>
+                  <div className="modal-body">
+                    <p>Payment cancelled!</p>
+                  </div>
+                  <div className="modal-footer">
+                    <button type="button" className="btn btn-secondary" onClick={() => this.hideAll()}>Close</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          }
       </div>
     );
   }
@@ -188,6 +230,7 @@ class App extends Component {
 const mapStateToProps = (state) => {
   return {
     order: state.order,
+    payment: state.payment,
     items: state.items,
     view: state.view || VIEW_NONE
   };

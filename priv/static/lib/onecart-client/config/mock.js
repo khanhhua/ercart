@@ -77,8 +77,11 @@ server.post('/A12345678tom/api/orders', (req) => {
   })];
 });
 
-server.post('/api/pay', (req) => {
+server.post('/A12345678tom/api/pay', (req) => {
+  const {transaction_id} = extractBody(req, ['transaction_id']);
+
   return json({
+    transaction_id,
     method: 'paypal',
     payment_url: '/mock-paypal-webscr.html'
   });
