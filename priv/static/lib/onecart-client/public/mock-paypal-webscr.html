@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mock Paypal</title>
+  <style>
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+  }
+  </style>
+  <script>
+  function complete() {
+    window.location.href = '/mock-paypal-complete.html';
+  }
+
+  function cancel() {
+    window.location.href = '/mock-paypal-cancel.html';
+  }
+  </script>
+</head>
+<body>
+
+<div class="container">
+  <a href="javascript:complete()">Successful Payment</a>
+  <a href="javascript:cancel()">Cancel Payment</a>
+</div>
+
+</body>
+</html>

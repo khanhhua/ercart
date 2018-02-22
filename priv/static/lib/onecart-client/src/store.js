@@ -1,6 +1,11 @@
 import { createStore, applyMiddleware } from 'redux';
 import thunk from 'redux-thunk';
-import {VIEW_CART, VIEW_NONE, VIEW_SUMMARY, VIEW_ORDER, VIEW_THANK_YOU} from './consts';
+import {
+  VIEW_NONE,
+  VIEW_SUMMARY,
+  VIEW_CART,
+  VIEW_ORDER, VIEW_PAYMENT,
+  VIEW_THANK_YOU, VIEW_PAYMENT_CANCELLED} from './consts';
 import {
   ACTION_HIDE_CART,
   ACTION_INIT_CART,
@@ -9,7 +14,9 @@ import {
   ACTION_SHOW_CART,
   ACTION_REMOVE_ITEM,
   ACTION_CHECKOUT,
-  ACTION_PLACE_ORDER
+  ACTION_PLACE_ORDER,
+  ACTION_PAY,
+  ACTION_RECEIVE_PAYMENT_STATUS
 } from './consts';
 import {STATUS_SUCCESS} from './consts';
 
@@ -79,6 +86,23 @@ function reducer(state = {items:[]}, action) {
         ...newState,
         view: VIEW_THANK_YOU,
         order,
+      };
+    }
+    case ACTION_PAY: {
+      const {payload: {payment, order}} = action;
+      return {
+        ...newState,
+        view: VIEW_PAYMENT,
+        payment,
+        order: Object.assign({}, state.order, order)
+      };
+    }
+    case ACTION_RECEIVE_PAYMENT_STATUS: {
+      const {payload: {status}} = action;
+      return {
+        ...newState,
+        view: status === 'complete' ? VIEW_THANK_YOU : VIEW_PAYMENT_CANCELLED,
+        order: Object.assign({}, state.order, {status})
       };
     }
   }

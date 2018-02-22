@@ -16,6 +16,7 @@
 -export([
   create_app/1,
   app_exists/1,
+  get_app/1,
   create_product/2,
   get_product/2,
   get_products/2,
@@ -47,6 +48,8 @@
 
 create_app(OwnerID) ->
   gen_server:call(?SERVER, {create_app, OwnerID}).
+get_app(AppID) ->
+  gen_server:call(?SERVER, {get_app, AppID}).
 app_exists(AppID) ->
   gen_server:call(?SERVER, {app_exists, AppID}).
 create_product(AppID, Product) ->
@@ -64,7 +67,9 @@ get_products(AppID, Params) ->
   {ok, Products}.
 
 get_order(AppID, OrderID) ->
-  gen_server:call(?SERVER, {get_order, AppID, OrderID}).
+  gen_server:call(?SERVER, {get_order, AppID, OrderID});
+get_order(AppID, {transactionid, TxID}) ->
+  gen_server:call(?SERVER, {get_order, AppID, {transactionid, TxID}}).
 
 get_orders(AppID, Params) -> {ok, []}.
 
@@ -166,13 +171,20 @@ init([]) ->
   {noreply, NewState :: #state{}, timeout() | hibernate} |
   {stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
   {stop, Reason :: term(), NewState :: #state{}}).
-handle_call({create_app, OwnerID}, _From, State) ->
+handle_call({create_app, App}, _From, State) ->
   HashidsContext = State#state.hashids_ctx,
   AppID = list_to_binary(hashids:encode(HashidsContext, erlang:system_time())),
 
-  case dets:insert_new(app, #app{id = AppID, ownerid = OwnerID}) of
+  case dets:insert_new(app, App#app{id = AppID}) of
     true -> {reply, {ok, AppID}, State};
     {error, Reason} -> {reply, {error, Reason}, State}
+  end;
+handle_call({get_app, AppID}, _From, State) ->
+  case dets:lookup(app, AppID) of
+    [App] -> {reply, {ok, App}, State};
+    Anything ->
+      io:format("Anything: ~p", [Anything]),
+      {reply, {error, "Could not find app"}, State}
   end;
 handle_call({app_exists, AppID}, _From, State) ->
   io:format("Looking up AppID: ~p...~n=>~p~n", [AppID, dets:lookup(app, AppID)]),
@@ -262,6 +274,11 @@ handle_call({update_order, AppID, UpdatedOrder = #order{id = OrderID}}, _From, S
     Anything ->
       io:format("Error: ~p", [Anything]),
       {reply, {error, "Could not find order"}, State}
+  end;
+handle_call({get_order, AppID, {transactionid, TxID}}, _From, State) ->
+  case dets:match_object(order, #order{transactionid = TxID, id = '$1', status = '$2', total = '$3', items = '$4'}) of
+    [Order] -> {reply, {ok, Order}, State};
+    {error, Reason} -> {reply, {error, Reason}, State}
   end;
 handle_call({get_order, AppID, OrderID}, _From, State) ->
   case dets:lookup(order, OrderID) of

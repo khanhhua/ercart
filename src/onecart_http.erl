@@ -24,6 +24,9 @@ init(Req0, State = #{resource := Resource}) ->
     true -> case Resource of
               cart -> resource_cart(Req0, State#{appid => AppID});
               checkout -> action_checkout(Req0, State#{appid => AppID});
+              pay -> action_pay(Req0, State#{appid => AppID});
+              complete_payment -> action_complete_payment(Req0, State#{appid => AppID});
+              cancel_payment -> action_cancel_payment(Req0, State#{appid => AppID});
               products -> resource_products(Req0, State#{appid => AppID});
               orders -> resource_orders(Req0, State#{appid => AppID})
             end;
@@ -39,8 +42,12 @@ resource_apps(Req0=#{method := <<"POST">>}, State) ->
   Headers = #{<<"content-type">> => <<"application/json">>},
   {ok, Body, _} = cowboy_req:read_body(Req0),
   Data = jsx:decode(Body, [return_maps]),
+  App = #app{
+    ownerid = maps:get(<<"ownerid">>, Data),
+    paypal_merchant_id = maps:get(<<"paypal_merchant_id">>, Data)
+  },
 
-  case onecart_db:create_app(maps:get(<<"ownerid">>, Data)) of
+  case onecart_db:create_app(App) of
     {ok, AppID} -> {ok, cowboy_req:reply(200,
       Headers,
       jsx:encode(#{<<"appid">> => AppID}),
@@ -180,6 +187,63 @@ action_checkout(Req0 = #{method := <<"POST">>}, State = #{appid := AppID}) ->
             } end,
             Order#order.items)
         }), Req0),
+      {ok, Req, State};
+    {error, Reason} ->
+      Req = cowboy_req:reply(400, #{
+        <<"content-type">> => <<"application/json">>
+      }, jsx:encode(list_to_binary(Reason)), Req0),
+      {ok, Req, State}
+  end.
+
+action_pay(Req0 = #{method := <<"POST">>}, State = #{appid := AppID}) ->
+  {ok, App} = onecart_db:get_app(AppID),
+  {ok, Body, _} = cowboy_req:read_body(Req0),
+  Data = jsx:decode(Body, [return_maps]),
+  OrderID = maps:get(<<"id">>, Data),
+
+  {ok, Order} = onecart_db:get_order(AppID, OrderID),
+  {ok, Payment} = onecart_paypal:pay(App, Order),
+  Headers = #{<<"content-type">> => <<"application/json">>},
+  Req = cowboy_req:reply(200, Headers, jsx:encode(#{
+    transaction_id => Order#order.transactionid,
+    method => <<"paypal">>,
+    payment_url => iolist_to_binary(io_lib:format("https://www.sandbox.paypal.com/cgi-bin/webscr?cmd=_ap-payment&paykey=~s", [Payment#payment.paykey]))
+  }), Req0),
+
+  {ok, Req, State}.
+
+action_complete_payment(Req0 = #{method := <<"GET">>}, State = #{appid := AppID}) ->
+  #{tx := TxID} = cowboy_req:match_qs([tx], Req0),
+  case onecart_db:get_order(AppID, {transactionid, TxID}) of
+    {ok, Order} ->
+      {ok, _Order} = onecart_db:update_order(AppID, Order#order{status = complete}),
+
+      Req = cowboy_req:reply(200, #{},
+        <<"<script>
+        window.opener.postMessage('onecart.paypal.complete','*');
+        setTimeout(function () { window.close() }, 300);
+        </script>">>,
+        Req0),
+      {ok, Req, State};
+    {error, Reason} ->
+      Req = cowboy_req:reply(400, #{
+      <<"content-type">> => <<"application/json">>
+      }, jsx:encode(list_to_binary(Reason)), Req0),
+      {ok, Req, State}
+  end.
+
+action_cancel_payment(Req0 = #{method := <<"GET">>}, State = #{appid := AppID}) ->
+  #{tx := TxID} = cowboy_req:match_qs([tx], Req0),
+  case onecart_db:get_order(AppID, {transactionid, TxID}) of
+    {ok, Order} ->
+      {ok, _Order} = onecart_db:update_order(AppID, Order#order{status = cancelled}),
+
+      Req = cowboy_req:reply(200, #{},
+        <<"<script>
+        window.opener.postMessage('onecart.paypal.cancel','*');
+        setTimeout(function () { window.close() }, 300);
+        </script>">>,
+        Req0),
       {ok, Req, State};
     {error, Reason} ->
       Req = cowboy_req:reply(400, #{

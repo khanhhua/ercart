@@ -7,6 +7,8 @@ import {
   ACTION_HIDE_CART,
   ACTION_CHECKOUT,
   ACTION_PLACE_ORDER,
+  ACTION_PAY,
+  ACTION_RECEIVE_PAYMENT_STATUS,
   STATUS_PENDING,
   STATUS_ERROR,
   STATUS_SUCCESS
@@ -264,5 +266,68 @@ export function placeOrder() {
         payload: error
       });
     })
+  };
+}
+
+export function pay() {
+  return (dispatch, getState) => {
+    const {appid, order: {id}} = getState();
+
+    dispatch({
+      type: ACTION_PAY,
+      status: STATUS_PENDING,
+      payload: {id}
+    });
+
+    apiPOST(`/${appid}/api/orders`, {id})
+    .then(({order, next_cid}) => {
+      localStorage.setItem('onecart.cid', next_cid);
+      return apiPOST(`/${appid}/api/pay`, {id, transaction_id: order.transaction_id}).then(payment => ({
+        order, payment
+      }));
+    })
+    .then(data => {
+      const { order, payment } = data;
+
+      dispatch({
+        type: ACTION_PAY,
+        status: STATUS_SUCCESS,
+        payload: {
+          payment: {
+            transaction_id: payment.transaction_id,
+            method: payment.method,
+            paymentUrl: payment.payment_url
+          },
+          order
+        }
+      });
+
+      window.open(payment.payment_url);
+
+      window.addEventListener('message', (e) => {
+        let message = e.data;
+        let payload;
+        if (message === 'onecart.paypal.complete') {
+          payload = Object.assign({}, payment, {status: 'complete'});
+        } else if (message === 'onecart.paypal.cancel') {
+          payload = Object.assign({}, payment, {status: 'cancel'});
+        } else {
+          return;
+        }
+
+        dispatch({
+          type: ACTION_RECEIVE_PAYMENT_STATUS,
+          status: STATUS_SUCCESS,
+          payload
+        });
+      });
+    })
+    .catch(error => {
+      dispatch({
+        type: ACTION_PAY,
+        status: STATUS_ERROR,
+        payload: error
+      });
+    });
   };
 }

@@ -75,4 +75,30 @@ server.post('/A12345678tom/api/orders', (req) => {
     },
     next_cid: ++cartID
   })];
-})
+});
+
+server.post('/A12345678tom/api/pay', (req) => {
+  const {transaction_id} = extractBody(req, ['transaction_id']);
+
+  return json({
+    transaction_id,
+    method: 'paypal',
+    payment_url: '/mock-paypal-webscr.html'
+  });
+});
+
+function extractBody(req, fields = []) {
+  const data = JSON.parse(req.requestBody);
+  console.log(data);
+  const result = {};
+
+  fields.forEach(field => {
+    result[field] = data[field];
+  });
+
+  return result;
+}
+
+function json(data, status = 200) {
+  return [status, {'content-type':'application/json'}, JSON.stringify(data)];
+}

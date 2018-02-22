@@ -8,8 +8,9 @@
 %%%-------------------------------------------------------------------
 -author("khanhhua").
 
--record(app, {id, ownerid}).
+-record(app, {id, ownerid, paypal_merchant_id}).
 -record(product, {id, name, price}).
 -record(cart, {id, appid, items = []}).
--record(order, {id, transactionid, items = [], total}).
+-record(order, {id, transactionid, status, items = [], total}).
 -record(order_item, {productid, productname, qty, price}).
+-record(payment, {paykey, status}).

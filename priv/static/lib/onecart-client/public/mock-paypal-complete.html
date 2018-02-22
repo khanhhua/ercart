@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Mock Papal - Complete</title>
+</head>
+<body>
+  DONE!
+  <script>
+  if (window.opener) {
+    window.opener.postMessage('onecart.paypal.complete','*');
+    setTimeout(function () { window.close() }, 300);
+  }
+  </script>
+</body>
+</html>
