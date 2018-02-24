@@ -59,11 +59,11 @@ resource_apps(Req0=#{method := <<"POST">>}, State) ->
         Req0), State}
   end.
 
-resource_cart(Req0=#{method := <<"POST">>}, State = #{appid := AppID}) ->
+resource_cart(Req0=#{method := <<"POST">>}, State = #{appid := AppID, pkey := PKey}) ->
   Headers = #{<<"content-type">> => <<"application/json">>},
   case onecart_db:create_cart(AppID) of
     {ok, CartID} ->
-      EncCartID = encrypt_cartid(CartID),
+      EncCartID = encrypt(CartID, PKey),
 
       {ok, cowboy_req:reply(200,
         Headers,
@@ -75,8 +75,8 @@ resource_cart(Req0=#{method := <<"POST">>}, State = #{appid := AppID}) ->
         jsx:encode(#{<<"error">> => Reason}),
         Req0), State}
   end;
-resource_cart(Req0=#{method := <<"PUT">>}, State = #{appid := AppID}) ->
-  CardID = cart_id(Req0),
+resource_cart(Req0=#{method := <<"PUT">>}, State = #{appid := AppID, skey := SKey}) ->
+  CardID = cart_id(Req0, SKey),
 
   {ok, Body, _} = cowboy_req:read_body(Req0),
   Data = jsx:decode(Body, [return_maps]),
@@ -102,8 +102,8 @@ resource_cart(Req0=#{method := <<"PUT">>}, State = #{appid := AppID}) ->
         Cart#cart.items)
     }), Req0),
   {ok, Req, State};
-resource_cart(Req0=#{method := <<"DELETE">>}, State = #{appid := AppID}) ->
-  CardID = cart_id(Req0),
+resource_cart(Req0=#{method := <<"DELETE">>}, State = #{appid := AppID, skey := SKey}) ->
+  CardID = cart_id(Req0, SKey),
 
   {ok, Body, _} = cowboy_req:read_body(Req0),
   Data = jsx:decode(Body, [return_maps]),
@@ -126,8 +126,8 @@ resource_cart(Req0=#{method := <<"DELETE">>}, State = #{appid := AppID}) ->
         Cart#cart.items)
     }), Req0),
   {ok, Req, State};
-resource_cart(Req0, State = #{appid := AppID}) ->
-  CardID = cart_id(Req0),
+resource_cart(Req0, State = #{appid := AppID, skey := SKey}) ->
+  CardID = cart_id(Req0, SKey),
   case onecart_db:get_cart(AppID, binary_to_integer(CardID)) of
     {ok, Cart} ->
       io:format("CartID: ~p~n", [Cart#cart.id]),
@@ -205,22 +205,25 @@ action_pay(Req0 = #{method := <<"POST">>}, State = #{appid := AppID}) ->
   {ok, Payment} = onecart_paypal:pay(App, Order),
   Headers = #{<<"content-type">> => <<"application/json">>},
   Req = cowboy_req:reply(200, Headers, jsx:encode(#{
-    transaction_id => Order#order.transactionid,
     method => <<"paypal">>,
     payment_url => iolist_to_binary(io_lib:format("https://www.sandbox.paypal.com/cgi-bin/webscr?cmd=_ap-payment&paykey=~s", [Payment#payment.paykey]))
   }), Req0),
 
   {ok, Req, State}.
 
-action_complete_payment(Req0 = #{method := <<"GET">>}, State = #{appid := AppID}) ->
-  #{tx := TxID} = cowboy_req:match_qs([tx], Req0),
+action_complete_payment(Req0 = #{method := <<"GET">>}, State = #{appid := AppID, skey := SKey}) ->
+  #{tx := UrlEncodedTxID} = cowboy_req:match_qs([tx], Req0),
+  io:format("UrlEncodedTxID: ~p~n", [UrlEncodedTxID]),
+  EncTxID = base64:decode(http_uri:decode(UrlEncodedTxID)),
+  TxID = decrypt(EncTxID, SKey),
+
   case onecart_db:get_order(AppID, {transactionid, TxID}) of
     {ok, Order} ->
       {ok, _Order} = onecart_db:update_order(AppID, Order#order{status = complete}),
 
       Req = cowboy_req:reply(200, #{},
         <<"<script>
-        window.opener.postMessage('onecart.paypal.complete','*');
+        window.opener && window.opener.postMessage('onecart.paypal.complete','*');
         setTimeout(function () { window.close() }, 300);
         </script>">>,
         Req0),
@@ -232,15 +235,18 @@ action_complete_payment(Req0 = #{method := <<"GET">>}, State = #{appid := AppID}
       {ok, Req, State}
   end.
 
-action_cancel_payment(Req0 = #{method := <<"GET">>}, State = #{appid := AppID}) ->
-  #{tx := TxID} = cowboy_req:match_qs([tx], Req0),
+action_cancel_payment(Req0 = #{method := <<"GET">>}, State = #{appid := AppID, skey := SKey}) ->
+  #{tx := UrlEncodedTxID} = cowboy_req:match_qs([tx], Req0),
+  EncTxID = base64:decode(http_uri:decode(UrlEncodedTxID)),
+  TxID = decrypt(EncTxID, SKey),
+
   case onecart_db:get_order(AppID, {transactionid, TxID}) of
     {ok, Order} ->
       {ok, _Order} = onecart_db:update_order(AppID, Order#order{status = cancelled}),
 
       Req = cowboy_req:reply(200, #{},
         <<"<script>
-        window.opener.postMessage('onecart.paypal.cancel','*');
+        window.opener && window.opener.postMessage('onecart.paypal.cancel','*');
         setTimeout(function () { window.close() }, 300);
         </script>">>,
         Req0),
@@ -294,7 +300,12 @@ resource_products(Req0, State = #{appid := AppID}) ->
   ), Req0),
   {ok, Req, State}.
 
-resource_orders(Req0 = #{method := <<"POST">>}, State = #{appid := AppID, hashids_ctx := HashidsContext}) ->
+resource_orders(Req0 = #{method := <<"POST">>},
+    State = #{
+      appid := AppID,
+      hashids_ctx := HashidsContext,
+      pkey := PKey
+    }) ->
   {ok, Body, _} = cowboy_req:read_body(Req0),
   Data = jsx:decode(Body, [return_maps]),
   Id = maps:get(<<"id">>, Data),
@@ -303,16 +314,16 @@ resource_orders(Req0 = #{method := <<"POST">>}, State = #{appid := AppID, hashid
     {ok, Order} ->
       TxID = list_to_binary(hashids:encode(HashidsContext, erlang:system_time())),
       {ok, _Order} = onecart_db:update_order(AppID, Order#order{transactionid = TxID}),
+      io:format("Order transaction ID: ~p~n", [TxID]),
 
       {ok, CardID} = onecart_db:create_cart(AppID),
-      EncCardID = encrypt_cartid(CardID),
+      EncCardID = encrypt(CardID, PKey),
       Req = cowboy_req:reply(200, #{
         <<"content-type">> => <<"application/json">>
       }, jsx:encode(
         #{
           <<"order">> => #{
-            <<"id">> => Order#order.id,
-            <<"transaction_id">> => TxID
+            <<"id">> => Order#order.id
           },
           <<"next_cid">> => base64:encode(EncCardID)
         }), Req0),
@@ -333,26 +344,13 @@ resource_orders(Req0, State = #{appid := AppID}) ->
     Orders)), Req0),
   {ok, Req, State}.
 
-cart_id(Req0) ->
+cart_id(Req0, SKey) ->
   Based64CardID = cowboy_req:header(<<"x-onecart-cid">>, Req0),
   io:format("Based64CardID: ~p~n", [Based64CardID]),
-  decrypt_cartid(base64:decode(Based64CardID)).
+  decrypt(base64:decode(Based64CardID), SKey).
 
-encrypt_cartid(CartID) ->
-  {ok, RsaPublicPem} = application:get_env(onecart, rsa_public),
-  io:format("RsaPublicPem: ~p~n", [RsaPublicPem]),
-  {ok, RawPKey} = file:read_file(RsaPublicPem),
+encrypt(Input, PKey) when is_integer(Input) ->
+  public_key:encrypt_public(integer_to_binary(Input), PKey).
 
-  [EncPKey] = public_key:pem_decode(RawPKey),
-  PKey = public_key:pem_entry_decode(EncPKey),
-  public_key:encrypt_public(integer_to_binary(CartID), PKey).
-
-decrypt_cartid(EncryptedCartID) ->
-  {ok, RsaPrivatePem} = application:get_env(onecart, rsa_private),
-  io:format("RsaPrivatePem: ~p~n", [RsaPrivatePem]),
-  {ok, RawSKey} = file:read_file(RsaPrivatePem),
-
-  [EncSKey] = public_key:pem_decode(RawSKey),
-  SKey = public_key:pem_entry_decode(EncSKey),
-
-  public_key:decrypt_private(EncryptedCartID, SKey).
+decrypt(Encrypted, SKey) ->
+  public_key:decrypt_private(Encrypted, SKey).

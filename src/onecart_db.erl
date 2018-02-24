@@ -66,10 +66,10 @@ get_products(AppID, Params) ->
 
   {ok, Products}.
 
-get_order(AppID, OrderID) ->
-  gen_server:call(?SERVER, {get_order, AppID, OrderID});
 get_order(AppID, {transactionid, TxID}) ->
-  gen_server:call(?SERVER, {get_order, AppID, {transactionid, TxID}}).
+  gen_server:call(?SERVER, {get_order, AppID, {transactionid, TxID}});
+get_order(AppID, OrderID) ->
+  gen_server:call(?SERVER, {get_order, AppID, OrderID}).
 
 get_orders(AppID, Params) -> {ok, []}.
 
