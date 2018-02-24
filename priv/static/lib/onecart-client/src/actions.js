@@ -282,7 +282,7 @@ export function pay() {
     apiPOST(`/${appid}/api/orders`, {id})
     .then(({order, next_cid}) => {
       localStorage.setItem('onecart.cid', next_cid);
-      return apiPOST(`/${appid}/api/pay`, {id, transaction_id: order.transaction_id}).then(payment => ({
+      return apiPOST(`/${appid}/api/pay`, {id}).then(payment => ({
         order, payment
       }));
     })
@@ -294,7 +294,6 @@ export function pay() {
         status: STATUS_SUCCESS,
         payload: {
           payment: {
-            transaction_id: payment.transaction_id,
             method: payment.method,
             paymentUrl: payment.payment_url
           },

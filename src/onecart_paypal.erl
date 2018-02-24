@@ -13,7 +13,7 @@
 -include("records.hrl").
 
 %% API
--export([start_link/0]).
+-export([start_link/1]).
 -export([pay/2]).
 
 %% gen_server callbacks
@@ -26,7 +26,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {base_url, appid, userid, password, signature}).
+-record(state, {base_url, appid, userid, password, signature, pkey}).
 
 %%%===================================================================
 %%% API
@@ -38,10 +38,10 @@
 %%
 %% @end
 %%--------------------------------------------------------------------
--spec(start_link() ->
+-spec(start_link(Config :: term()) ->
     {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
-start_link() ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+start_link(Config) ->
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [Config], []).
 
 
 pay(App, Order) when is_record(Order, order) ->
@@ -65,7 +65,7 @@ pay(App, Order) when is_record(Order, order) ->
 -spec(init(Args :: term()) ->
     {ok, State :: #state{}} | {ok, State :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term()} | ignore).
-init([]) ->
+init([#{pkey := PKey}]) ->
   {ok, BaseURL} = application:get_env(onecart, base_url),
   {ok, PaypalAppID} = application:get_env(onecart, paypal_appid),
   {ok, UserID} = application:get_env(onecart, paypal_userid),
@@ -79,7 +79,8 @@ init([]) ->
     appid = PaypalAppID,
     userid = UserID,
     password = Password,
-    signature = Signature
+    signature = Signature,
+    pkey = PKey
   }}.
 
 %%--------------------------------------------------------------------
@@ -97,7 +98,7 @@ init([]) ->
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
     {stop, Reason :: term(), NewState :: #state{}}).
-handle_call({pay, App, Order}, _From, State=#state{base_url = BaseURL, appid = PaypalAppID, userid = UserID, password = Password, signature = Signature}) ->
+handle_call({pay, App, Order}, _From, State=#state{base_url = BaseURL, appid = PaypalAppID, userid = UserID, password = Password, signature = Signature, pkey = PKey}) ->
   Url = <<"https://svcs.sandbox.paypal.com/AdaptivePayments/Pay">>,
   Headers = [
     {<<"X-PAYPAL-SECURITY-USERID">>, UserID},
@@ -109,6 +110,10 @@ handle_call({pay, App, Order}, _From, State=#state{base_url = BaseURL, appid = P
     {<<"X-PAYPAL-RESPONSE-DATA-FORMAT">>, <<"JSON">>},
     {<<"Content-Type">>, <<"application/json">>}
   ],
+
+  TxID = public_key:encrypt_public(Order#order.transactionid, PKey),
+  TxIDUriEncodedBased64 = http_uri:encode(base64:encode(TxID)),
+
   Payload = jsx:encode(#{
     actionType => <<"PAY">>,
     currencyCode => <<"SGD">>,
@@ -119,9 +124,9 @@ handle_call({pay, App, Order}, _From, State=#state{base_url = BaseURL, appid = P
       }]
     },
     returnUrl => iolist_to_binary(io_lib:format("~s/~s/api/complete-payment?tx=~s",
-        [BaseURL, binary_to_list(App#app.id), binary_to_list(Order#order.transactionid)])),
+        [BaseURL, binary_to_list(App#app.id), binary_to_list(TxIDUriEncodedBased64)])),
     cancelUrl => iolist_to_binary(io_lib:format("~s/~s/api/cancel-payment?tx=~s",
-        [BaseURL, binary_to_list(App#app.id), binary_to_list(Order#order.transactionid)])),
+        [BaseURL, binary_to_list(App#app.id), binary_to_list(TxIDUriEncodedBased64)])),
     requestEnvelope => #{
       errorLanguage => <<"en_US">>,
       detailLevel => <<"ReturnAll">>
