@@ -41,6 +41,7 @@ start(_StartType, _StartArgs) ->
       {"/:appid/api/products/:productid", onecart_http, #{resource => 'products'}},
       {"/:appid/api/checkout", onecart_http, #{resource => 'checkout'}},
       {"/:appid/api/pay", onecart_http, #{resource => 'pay'}},
+      {"/:appid/api/ipn", onecart_http, #{resource => 'ipn', skey => SKey}},
       {"/:appid/api/complete-payment", onecart_http, #{resource => 'complete_payment', skey => SKey}},
       {"/:appid/api/cancel-payment", onecart_http, #{resource => 'cancel_payment', skey => SKey}},
       {"/:appid/api/orders", onecart_http, #{resource => 'orders', hashids_ctx => HashidsContext, pkey => PKey}}

@@ -25,6 +25,7 @@ init(Req0, State = #{resource := Resource}) ->
               cart -> resource_cart(Req0, State#{appid => AppID});
               checkout -> action_checkout(Req0, State#{appid => AppID});
               pay -> action_pay(Req0, State#{appid => AppID});
+              ipn -> action_ipn(Req0, State#{appid => AppID});
               complete_payment -> action_complete_payment(Req0, State#{appid => AppID});
               cancel_payment -> action_cancel_payment(Req0, State#{appid => AppID});
               products -> resource_products(Req0, State#{appid => AppID});
@@ -211,6 +212,31 @@ action_pay(Req0 = #{method := <<"POST">>}, State = #{appid := AppID}) ->
 
   {ok, Req, State}.
 
+action_ipn(Req0 = #{method := <<"POST">>}, State = #{appid := AppID, skey := SKey}) ->
+  io:format("IPN...~n"),
+
+  #{tx := UrlEncodedTxID} = cowboy_req:match_qs([tx], Req0),
+  io:format("UrlEncodedTxID: ~p~n", [UrlEncodedTxID]),
+  EncTxID = base64:decode(http_uri:decode(UrlEncodedTxID)),
+  TxID = decrypt(EncTxID, SKey),
+
+  case onecart_db:get_order(AppID, {transactionid, TxID}) of
+    {ok, Order} ->
+      {ok, RefNo} = onecart_db:next_ref_no(AppID),
+      {ok, _Order} = onecart_db:update_order(AppID,
+        Order#order{
+          status = complete,
+          refno = iolist_to_binary(io_lib:format("~B~2..0B~6..0B", tuple_to_list(RefNo)))
+        }),
+      Req = cowboy_req:reply(200, #{}, <<"OK">>, Req0),
+      {ok, Req, State};
+    {error, Reason} ->
+      Req = cowboy_req:reply(400, #{
+        <<"content-type">> => <<"application/json">>
+      }, jsx:encode(list_to_binary(Reason)), Req0),
+      {ok, Req, State}
+  end.
+
 action_complete_payment(Req0 = #{method := <<"GET">>}, State = #{appid := AppID, skey := SKey}) ->
   #{tx := UrlEncodedTxID} = cowboy_req:match_qs([tx], Req0),
   io:format("UrlEncodedTxID: ~p~n", [UrlEncodedTxID]),
@@ -219,8 +245,6 @@ action_complete_payment(Req0 = #{method := <<"GET">>}, State = #{appid := AppID,
 
   case onecart_db:get_order(AppID, {transactionid, TxID}) of
     {ok, Order} ->
-      {ok, _Order} = onecart_db:update_order(AppID, Order#order{status = complete}),
-
       Req = cowboy_req:reply(200, #{},
         <<"<script>
         window.opener && window.opener.postMessage('onecart.paypal.complete','*');
