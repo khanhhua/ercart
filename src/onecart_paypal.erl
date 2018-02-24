@@ -127,6 +127,8 @@ handle_call({pay, App, Order}, _From, State=#state{base_url = BaseURL, appid = P
         [BaseURL, binary_to_list(App#app.id), binary_to_list(TxIDUriEncodedBased64)])),
     cancelUrl => iolist_to_binary(io_lib:format("~s/~s/api/cancel-payment?tx=~s",
         [BaseURL, binary_to_list(App#app.id), binary_to_list(TxIDUriEncodedBased64)])),
+    ipnNotificationUrl => iolist_to_binary(io_lib:format("~s/~s/api/ipn?tx=~s",
+        [BaseURL, binary_to_list(App#app.id), binary_to_list(TxIDUriEncodedBased64)])),
     requestEnvelope => #{
       errorLanguage => <<"en_US">>,
       detailLevel => <<"ReturnAll">>

@@ -27,7 +27,8 @@
   update_cart/3,
   remove_cart_item/3,
   create_order/2,
-  update_order/2]).
+  update_order/2,
+  next_ref_no/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -98,6 +99,9 @@ create_order(AppID, Items) ->
 
 update_order(AppID, OrderID) ->
   gen_server:call(?SERVER, {update_order, AppID, OrderID}).
+
+next_ref_no(AppID) ->
+  gen_server:call(?SERVER, {next_ref_no, AppID}).
 %%--------------------------------------------------------------------
 %% @doc
 %% Starts the server
@@ -135,6 +139,10 @@ init([]) ->
   {ok, app} = dets:open_file(app, [
     {keypos, #app.id},
     {file, filename:join(DataDir, "apps.dat")}
+  ]),
+  {ok, app_stats} = dets:open_file(app_stats, [
+    {keypos, #app_stats.id},
+    {file, filename:join(DataDir, "app_stats.dat")}
   ]),
   {ok, cart} = dets:open_file(cart, [
     {keypos, #cart.id},
@@ -176,7 +184,11 @@ handle_call({create_app, App}, _From, State) ->
   AppID = list_to_binary(hashids:encode(HashidsContext, erlang:system_time())),
 
   case dets:insert_new(app, App#app{id = AppID}) of
-    true -> {reply, {ok, AppID}, State};
+    true ->
+      case dets:insert_new(app_stats, #app_stats{id = AppID}) of
+        true -> {reply, {ok, AppID}, State};
+        {error, Reason} -> {reply, {error, Reason}, State}
+      end;
     {error, Reason} -> {reply, {error, Reason}, State}
   end;
 handle_call({get_app, AppID}, _From, State) ->
@@ -285,6 +297,21 @@ handle_call({get_order, AppID, OrderID}, _From, State) ->
     [Order] -> {reply, {ok, Order}, State};
     {error, Reason} -> {reply, {error, Reason}, State}
   end;
+handle_call({next_ref_no, AppID}, _From, State) ->
+  %% Note: next vs last depends on how you see it
+  %% "last" from db's point of view
+  %% "next" from manager's point of view
+  case dets:lookup(app_stats, AppID) of
+    [AppStats] ->
+      NextRefNo = if
+        AppStats#app_stats.last_order_no =:= undefined -> generate_next_ref_no();
+        true -> generate_next_ref_no(AppStats#app_stats.last_order_no)
+      end,
+
+      ok = dets:insert(app_stats, AppStats#app_stats{last_order_no = NextRefNo}),
+      {reply, {ok, NextRefNo}, State};
+    {error, Reason} -> {reply, {error, Reason}, State}
+  end;
 handle_call(_Request, _From, State) ->
   {reply, ok, State}.
 
@@ -334,6 +361,7 @@ handle_info(_Info, State) ->
     State :: #state{}) -> term()).
 terminate(_Reason, _State) ->
   dets:close(app),
+  dets:close(app_stats),
   dets:close(cart),
   dets:close(product),
   dets:close(orders),
@@ -356,3 +384,15 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+generate_next_ref_no() ->
+  {{Y,M,_}, _} = calendar:local_time(),
+  {Y,M,1}.
+generate_next_ref_no(RefNo) ->
+  {Y0,M0,Current} = RefNo,
+  {{Y,M,_}, _} = calendar:local_time(),
+
+  if
+    (Y0 =:= Y) and (M0 =:= M) -> {Y,M,Current + 1};
+    true -> {Y,M,1}
+  end.
