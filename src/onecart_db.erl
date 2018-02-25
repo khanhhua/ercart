@@ -288,7 +288,15 @@ handle_call({update_order, AppID, UpdatedOrder = #order{id = OrderID}}, _From, S
       {reply, {error, "Could not find order"}, State}
   end;
 handle_call({get_order, AppID, {transactionid, TxID}}, _From, State) ->
-  case dets:match_object(order, #order{transactionid = TxID, id = '$1', status = '$2', total = '$3', items = '$4'}) of
+  case dets:match_object(order,
+    #order{
+      transactionid = TxID,
+      id = '$1',
+      refno = '$2',
+      status = '$3',
+      total = '$4',
+      items = '$5'
+    }) of
     [Order] -> {reply, {ok, Order}, State};
     {error, Reason} -> {reply, {error, Reason}, State}
   end;
