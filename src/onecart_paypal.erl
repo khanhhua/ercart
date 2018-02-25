@@ -140,7 +140,7 @@ handle_call({pay, App, Order}, _From, State=#state{base_url = BaseURL, appid = P
       {ok, Body} = hackney:body(ClientRef),
       Data = jsx:decode(Body),
 
-      io:format("Body: ~p", [Body]),
+      io:format("Body: ~p~n", [Body]),
 
       Payment = #payment{
         paykey = proplists:get_value(<<"payKey">>, Data),
@@ -173,7 +173,7 @@ handle_cast({validate, TxID, IpnBody, CallbackFun}, State) ->
   case hackney:request(post, Url, Headers, <<>>, Options) of
     {ok, _StatusCode, _Headers, ClientRef} ->
       {ok, Body} = hackney:body(ClientRef),
-      io:format("Body: ~p", [Body]),
+      io:format("Body: ~p~n", [Body]),
 
       if
         Body =:= <<"VERIFIED">> -> CallbackFun(TxID);

@@ -227,13 +227,10 @@ action_ipn(Req0 = #{method := <<"POST">>}, State = #{appid := AppID, skey := SKe
     fun (ConfirmedTxID) ->
       case onecart_db:get_order(AppID, {transactionid, ConfirmedTxID}) of
         {ok, Order} ->
-          {ok, RefNo} = onecart_db:next_ref_no(AppID),
-          FormattedRefNo = iolist_to_binary(io_lib:format("~B~2..0B~6..0B", tuple_to_list(RefNo))),
-          io:format("Order has been confirmed. RefNo: ~p~n", [FormattedRefNo]),
+          io:format("Order has been confirmed. RefNo: ~p~n", [Order#order.refno]),
           {ok, _Order} = onecart_db:update_order(AppID,
             Order#order{
-              status = complete,
-              refno = FormattedRefNo
+              status = complete
             });
         {error, Reason} ->
           io:format("Could not confirm order error: ~p~n", [Reason])
@@ -343,7 +340,14 @@ resource_orders(Req0 = #{method := <<"POST">>},
   case onecart_db:get_order(AppID, Id) of
     {ok, Order} ->
       TxID = list_to_binary(hashids:encode(HashidsContext, erlang:system_time())),
-      {ok, _Order} = onecart_db:update_order(AppID, Order#order{transactionid = TxID}),
+      {ok, RefNo} = onecart_db:next_ref_no(AppID),
+      FormattedRefNo = iolist_to_binary(io_lib:format("~B~2..0B~6..0B", tuple_to_list(RefNo))),
+      {ok, OrderUpdated} = onecart_db:update_order(AppID,
+        Order#order{
+          transactionid = TxID,
+          refno = FormattedRefNo,
+          status = pending
+        }),
       io:format("Order transaction ID: ~p~n", [TxID]),
 
       {ok, CardID} = onecart_db:create_cart(AppID),
@@ -353,7 +357,8 @@ resource_orders(Req0 = #{method := <<"POST">>},
       }, jsx:encode(
         #{
           <<"order">> => #{
-            <<"id">> => Order#order.id
+            <<"id">> => Order#order.id,
+            <<"refno">> => OrderUpdated#order.refno
           },
           <<"next_cid">> => base64:encode(EncCardID)
         }), Req0),
