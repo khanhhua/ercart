@@ -191,6 +191,7 @@ class App extends Component {
                 </div>
                 <div className="modal-body">
                   <p>Thank you!</p>
+                  <p>Reference no.:<span>{this.props.order.refno}</span></p>
                 </div>
                 <div className="modal-footer">
                   <button type="button" className="btn btn-secondary" onClick={() => this.hideAll()}>Close</button>
