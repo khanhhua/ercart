@@ -80,7 +80,7 @@ measureFileSizesBeforeBuild(paths.appBuild)
         WARN_AFTER_CHUNK_GZIP_SIZE
       );
       console.log();
-
+      copyBuildFolderToPriv();
       const appPackage = require(paths.appPackageJson);
       const publicUrl = paths.publicUrl;
       const publicPath = config.output.publicPath;
@@ -147,4 +147,10 @@ function copyPublicFolder() {
     dereference: true,
     filter: file => file !== paths.appHtml,
   });
+}
+
+function copyBuildFolderToPriv() {
+  console.log(`Copying from "${paths.appBuild}" to application priv (${path.resolve('../priv/static/lib')})...`);
+  console.log();
+  fs.copySync(paths.appBuild, path.resolve('../priv/static/lib'));
 }

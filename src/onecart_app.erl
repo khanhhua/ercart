@@ -34,7 +34,7 @@ start(_StartType, _StartArgs) ->
     %% {HostMatch, list({PathMatch, Handler, InitialState})}
     {'_', [
       {"/static/demo/[...]", cowboy_static, {priv_dir, onecart, "static/demo"}},
-      {"/static/lib/[...]", cowboy_static, {priv_dir, onecart, "static/lib/onecart-client/build/static"}},
+      {"/static/lib/[...]", cowboy_static, {priv_dir, onecart, "static/lib/static"}},
       {"/api/apps", onecart_http, #{resource => 'apps'}},
       {"/:appid/api/cart", onecart_http, #{resource => 'cart', pkey => PKey, skey => SKey}},
       {"/:appid/api/products", onecart_http, #{resource => 'products'}},
