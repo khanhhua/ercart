@@ -217,7 +217,7 @@ action_ipn(Req0 = #{method := <<"POST">>}, State = #{appid := AppID, skey := SKe
 
   #{tx := UrlEncodedTxID} = cowboy_req:match_qs([tx], Req0),
   io:format("UrlEncodedTxID: ~p~n", [UrlEncodedTxID]),
-  EncTxID = base64:decode(http_uri:decode(UrlEncodedTxID)),
+  EncTxID = base64:decode(cow_qs:urldecode(UrlEncodedTxID)),
   TxID = decrypt(EncTxID, SKey),
 
   case onecart_db:get_order(AppID, {transactionid, TxID}) of
@@ -240,7 +240,7 @@ action_ipn(Req0 = #{method := <<"POST">>}, State = #{appid := AppID, skey := SKe
 action_complete_payment(Req0 = #{method := <<"GET">>}, State = #{appid := AppID, skey := SKey}) ->
   #{tx := UrlEncodedTxID} = cowboy_req:match_qs([tx], Req0),
   io:format("UrlEncodedTxID: ~p~n", [UrlEncodedTxID]),
-  EncTxID = base64:decode(http_uri:decode(UrlEncodedTxID)),
+  EncTxID = base64:decode(cow_qs:urldecode(UrlEncodedTxID)),
   TxID = decrypt(EncTxID, SKey),
 
   case onecart_db:get_order(AppID, {transactionid, TxID}) of
@@ -261,7 +261,7 @@ action_complete_payment(Req0 = #{method := <<"GET">>}, State = #{appid := AppID,
 
 action_cancel_payment(Req0 = #{method := <<"GET">>}, State = #{appid := AppID, skey := SKey}) ->
   #{tx := UrlEncodedTxID} = cowboy_req:match_qs([tx], Req0),
-  EncTxID = base64:decode(http_uri:decode(UrlEncodedTxID)),
+  EncTxID = base64:decode(cow_qs:urldecode(UrlEncodedTxID)),
   TxID = decrypt(EncTxID, SKey),
 
   case onecart_db:get_order(AppID, {transactionid, TxID}) of
