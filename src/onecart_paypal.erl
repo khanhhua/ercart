@@ -112,7 +112,7 @@ handle_call({pay, App, Order}, _From, State=#state{base_url = BaseURL, appid = P
   ],
 
   TxID = public_key:encrypt_public(Order#order.transactionid, PKey),
-  TxIDUriEncodedBased64 = http_uri:encode(base64:encode(TxID)),
+  TxIDUriEncodedBased64 = cow_qs:urlencode(base64:encode(TxID)),
 
   Payload = jsx:encode(#{
     actionType => <<"PAY">>,
