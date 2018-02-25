@@ -14,7 +14,7 @@
 
 %% API
 -export([start_link/1]).
--export([pay/2]).
+-export([pay/2, validate/3]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -46,7 +46,8 @@ start_link(Config) ->
 
 pay(App, Order) when is_record(Order, order) ->
   gen_server:call(?SERVER, {pay, App, Order}).
-
+validate(TxID, IpnBody, CallbackFun) when is_function(CallbackFun) ->
+  gen_server:cast(?SERVER, {validate, TxID, IpnBody, CallbackFun}).
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
@@ -164,8 +165,26 @@ handle_call(_Request, _From, State) ->
     {noreply, NewState :: #state{}} |
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #state{}}).
+handle_cast({validate, TxID, IpnBody, CallbackFun}, State) ->
+  Url = iolist_to_binary(io_lib:format(<<"https://ipnpb.sandbox.paypal.com/cgi-bin/webscr?cmd=_notify-validate&~s">>,
+      [IpnBody])),
+  Headers = [{<<"Connection">>, <<"keep-alive">>}],
+  Options = [{pool, default}],
+  case hackney:request(post, Url, Headers, <<>>, Options) of
+    {ok, _StatusCode, _Headers, ClientRef} ->
+      {ok, Body} = hackney:body(ClientRef),
+      io:format("Body: ~p", [Body]),
+
+      if
+        Body =:= <<"VERIFIED">> -> CallbackFun(TxID);
+        Body =:= <<"INVALID">> -> io:format("Could not confirm against PayPal IPN service. TxID: ~p~n", [TxID])
+      end;
+    {error, Reason} ->
+      io:format("Could not confirm against PayPal IPN service. Reason: ~p~n", [Reason])
+  end,
+  {noreply, State};
 handle_cast(_Request, State) ->
-    {noreply, State}.
+  {noreply, State}.
 
 %%--------------------------------------------------------------------
 %% @private
