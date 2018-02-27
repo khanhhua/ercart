@@ -104,17 +104,29 @@ export function initCart(appid) {
 
     const cart = new Promise((resolve, reject) => {
       if (localStorage.getItem('onecart.cid')) {
+        const cid = localStorage.getItem('onecart.cid');
         return fetch(`/${appid}/api/cart`, {
           method: 'GET',
           cache: 'no-cache',
           headers: {
             'content-type': 'application/json',
-            'x-onecart-cid': localStorage.getItem('onecart.cid')
+            'x-onecart-cid': cid
           },
           mode: 'cors'
         })
-        .then(res => resolve(res.json()))
+        .then(res => {
+          if (res.status === 400) {
+            console.warn(`Cart identified by ${cid} not found`);
+            createCart();
+          } else {
+            resolve(res.json())
+          }
+        })
       } else {
+        createCart();
+      }
+
+      function createCart() {
         return fetch(`/${appid}/api/cart`, {
           method: 'POST',
           cache: 'no-cache',
