@@ -3,7 +3,6 @@ import {connect} from 'react-redux';
 import {bindActionCreators} from 'redux';
 import ReactDOM from 'react-dom';
 // import logo from './logo.svg';
-import './App.css';
 import {VIEW_NONE, VIEW_CART, VIEW_SUMMARY, VIEW_ORDER, VIEW_PAYMENT, VIEW_THANK_YOU, VIEW_PAYMENT_CANCELLED} from './consts';
 import {
   showCart,
@@ -16,6 +15,7 @@ import {
   checkout,
   placeOrder,
   pay } from './actions';
+import {isTouchDevice} from './funs';
 
 class App extends Component {
   componentDidMount() {
@@ -30,6 +30,13 @@ class App extends Component {
       setTimeout(() => {
         node.classList.add('show');
       }, 300);
+    } else if (this.dropdown) {
+      const node = ReactDOM.findDOMNode(this.dropdown);
+      node.focus();
+      !isTouchDevice() && node.addEventListener('blur', () => {
+        node.className = 'onecart-summary fading-out';
+        node.addEventListener('animationend', () => this.hideAll())
+      });
     }
   }
 
@@ -63,15 +70,39 @@ class App extends Component {
   }
 
   render() {
+    const isEmptyCart = !(this.props.items && this.props.items.length);
+
     return (
       <div className="onecart">
         {(this.props.view === VIEW_SUMMARY)&&
-        <div className="onecart-summary">
-          <h2>Summary</h2>
-          <p>Cart summary</p>
-          <div className="btn-group">
-            <a className="btn btn-default" href="#" onClick={() => this.hideAll()}>Close</a>
-            <a className="btn btn-primary" href="#" onClick={() => this.showCart()}>Details</a>
+        <div className="onecart-summary" tabIndex={1}
+          ref={node => this.dropdown = node}
+          style={
+            {
+              left: `${this.props.ui.left}px`,
+              top: `${this.props.ui.top}px`}}>
+          <div className="modal-body">
+            {isEmptyCart &&
+            <p className="text-center">Empty cart</p>
+            }
+            {!isEmptyCart &&
+            <ul className="list-group list-group-flush">
+            {this.props.items.map((it, i) =>
+              <li className="list-group-item" key={i}>
+                {it.name}
+                <span className="float-right">{it.qty}</span>
+              </li>
+            )}
+            </ul>
+            }
+          </div>
+          <div className="modal-footer">
+            <div className="btn-group">
+              <a className="btn btn-sm btn-default" href="#" onClick={() => this.hideAll()}>Close</a>
+              {!isEmptyCart &&
+              <a className="btn btn-sm btn-primary" href="#" onClick={() => this.showCart()}>Details</a>
+              }
+            </div>
           </div>
         </div>
         }
@@ -83,28 +114,35 @@ class App extends Component {
                 <div className="modal-header">
                   <h5 className="modal-title">Your cart</h5>
                   <button type="button" className="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
+                    <span aria-hidden="true" onClick={() => this.hideAll()}>&times;</span>
                   </button>
                 </div>
                 <div className="modal-body">
-                <ul className="list-group list-group-flush">
-                {this.props.items.map((it, i) =>
-                  <li className="list-group-item" key={i}>
-                    {it.name}
-                    <div className="float-right input-group" style={{width: 140}}>
-                      <input type="number" className="form-control" value={it.qty}
-                             onChange={({target:{value}}) => this.updateCart(it.id, value)} />
-                      <div className="input-group-append">
-                        <button className="btn btn-outline-secondary" type="button"
-                                onClick={() => this.props.actions.removeCartItem(it.id)}>Remove</button>
+                  {isEmptyCart &&
+                  <p className="text-center">Empty cart</p>
+                  }
+                  {!isEmptyCart &&
+                  <ul className="list-group list-group-flush">
+                  {this.props.items.map((it, i) =>
+                    <li className="list-group-item" key={i}>
+                      {it.name}
+                      <div className="float-right input-group" style={{width: 140}}>
+                        <input type="number" className="form-control" value={it.qty}
+                               onChange={({target:{value}}) => this.updateCart(it.id, value)} />
+                        <div className="input-group-append">
+                          <button className="btn btn-outline-secondary" type="button"
+                                  onClick={() => this.props.actions.removeCartItem(it.id)}>Remove</button>
+                        </div>
                       </div>
-                    </div>
-                  </li>
-                )}
-                </ul>
+                    </li>
+                  )}
+                  </ul>
+                  }
                 </div>
                 <div className="modal-footer">
+                  {!isEmptyCart &&
                   <button type="button" className="btn btn-primary" onClick={() => this.checkout()}>Check out now!</button>
+                  }
                   <button type="button" className="btn btn-secondary" onClick={() => this.hideAll()}>Close</button>
                 </div>
               </div>
@@ -230,6 +268,7 @@ class App extends Component {
 
 const mapStateToProps = (state) => {
   return {
+    ui: state.ui,
     order: state.order,
     payment: state.payment,
     items: state.items,

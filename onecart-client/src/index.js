@@ -5,7 +5,8 @@ import './index.css';
 import {Provider} from 'react-redux';
 import createStore from './store';
 import App from './App';
-import {showSummary, updateCart} from './actions';
+import {showSummary, showCart, updateCart} from './actions';
+import {isTouchDevice} from './funs';
 // Global exports
 
 window.ONECART = {
@@ -16,8 +17,12 @@ window.ONECART = {
 
     var store = createStore();
     const cartButtons = document.querySelectorAll('[onecart-toggle]');
-    cartButtons && cartButtons.forEach(it => it.addEventListener('click', () => {
-      store.dispatch(showSummary());
+    cartButtons && cartButtons.forEach(it => it.addEventListener('click', ({target}) => {
+      if (isTouchDevice()) {
+        store.dispatch(showCart());
+      } else {
+        store.dispatch(showSummary(target));
+      }
     }));
 
     const addToCartButtons = document.querySelectorAll('[onecart-add-to-cart]');
@@ -37,4 +42,3 @@ window.ONECART = {
     ReactDOM.render(<Provider store={store}><App appid={appid} /></Provider>, root);
   }
 };
-

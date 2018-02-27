@@ -34,7 +34,8 @@ function reducer(state = {items:[]}, action) {
     case ACTION_SHOW_SUMMARY: {
       return {
         ...newState,
-        view: VIEW_SUMMARY
+        view: VIEW_SUMMARY,
+        ui: action.payload
       };
     }
     case ACTION_SHOW_CART: {
