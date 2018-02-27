@@ -336,8 +336,9 @@ export function pay() {
       });
 
       window.open(payment.payment_url);
+      function handleMessage (e) {
+        window.removeEventListener('message', handleMessage);
 
-      window.addEventListener('message', (e) => {
         let message = e.data;
         let payload;
         if (message === 'onecart.paypal.complete') {
@@ -353,7 +354,9 @@ export function pay() {
           status: STATUS_SUCCESS,
           payload
         });
-      });
+      }
+
+      window.addEventListener('message', handleMessage);
     })
     .catch(error => {
       dispatch({
