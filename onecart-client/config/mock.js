@@ -10,7 +10,7 @@ const products = {
 }
 
 server.get('/A12345678tom/api/cart', req => {
-  return [200, {'content-type':'application/json'}, JSON.stringify({
+  return [400, {'content-type':'application/json'}, JSON.stringify({
     cid: cartID,
     items: []
   })];
