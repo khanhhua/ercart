@@ -49,10 +49,32 @@ function apiPOST(url, data) {
   .then(res => res.json());
 }
 
-export function showSummary() {
+export function showSummary(anchor) {
+  function offset(element) {
+    if (element.offsetParent === document.body) {
+      return { left: element.offsetLeft, top: element.offsetTop };
+    } else {
+      const offsetParent = offset(element.parent);
+      return {
+        left: element.offsetLeft + offsetParent.left,
+        top: element.offsetTop + offsetParent.top
+      };
+    }
+  }
+
+  const anchorOffset = offset(anchor);
+  const anchorSize = {
+    width: anchor.clientWidth,
+    height: anchor.clientHeight
+  };
+
   return (dispatch) => {
     dispatch({
-      type: ACTION_SHOW_SUMMARY
+      type: ACTION_SHOW_SUMMARY,
+      payload: {
+        left: anchorOffset.left + anchorSize.width,
+        top: anchorOffset.top + anchorSize.height
+      }
     });
   }
 }
