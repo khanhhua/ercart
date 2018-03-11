@@ -1,0 +1,28 @@
+<h2>New Product</h2>
+<div class="ui form {{if hasErrors "warning"}}">
+  <div class="two fields">
+    <div class="twelve wide field {{if errors.name "error" }}">
+      <label>Name</label>
+      {{input type="text" value=model.name}}
+    </div>
+    <div class="four wide field {{if errors.id "error" }}">
+      <label>ID</label>
+      {{input type="text" value=model.id}}
+    </div>
+  </div>
+  <div class="field {{if errors.price "error" }}">
+    <label>Price</label>
+    {{input type="text" value=model.price}}
+  </div>
+
+  {{#if hasErrors}}
+  <div class="ui warning message">
+    <ul class="list">
+    {{#each-in errors as |name error|}}
+      <li>{{name}} is {{error}}</li>
+    {{/each-in}}
+    </ul>
+  </div>
+  {{/if}}
+  <button class="ui teal button" {{action "save" model}}>Save</button>
+</div>

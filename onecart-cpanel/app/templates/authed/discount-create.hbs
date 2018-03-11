@@ -1,0 +1,36 @@
+<h2>New Discount</h2>
+<div class="ui form {{if hasErrors "warning"}}">
+  <div class="two fields">
+    <div class="twelve wide field {{if errors.promocode "error" }}">
+      <label>Promocode</label>
+      {{input type="text" value=model.promocode}}
+    </div>
+    <div class="four wide field {{if errors.id "error" }}">
+      <label>ID</label>
+      {{input type="text" value=model.id}}
+    </div>
+  </div>
+  <div class="field {{if errors.expiry "error" }}">
+    <label>Expiry</label>
+    {{input type="text" value=model.expiry}}
+  </div>
+  <div class="field">
+    <label>Status</label>
+    {{ui-checkbox class="toggle" label=(if (eq model.status "active") "Active" "Inactive")
+                  checked=(eq model.status "active")
+                  }}
+  </div>
+
+  <div class="ui divider"></div>
+  {{#if hasErrors}}
+    <div class="ui warning message">
+      <ul class="list">
+        {{#each-in errors as |name error|}}
+          <li>{{name}} is {{error}}</li>
+        {{/each-in}}
+      </ul>
+    </div>
+  {{/if}}
+
+  <button class="ui teal button" {{action "save" model}}>Save</button>
+</div>

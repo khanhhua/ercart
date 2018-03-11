@@ -1,0 +1,52 @@
+<div class="ui form">
+  <h4 class="ui dividing header">Discount Details</h4>
+  <div class="two fields">
+    <div class="field">
+      <label>Promocode</label>
+      {{input value=model.promocode readonly=true}}
+    </div>
+    <div class="field">
+      <label>Expiry</label>
+      {{input value=(moment-format model.expiry "DD/MM/YY") readonly=true}}
+    </div>
+  </div>
+
+  <div class="field inline">
+    <label>Status</label>
+    {{#if (eq model.status "active")}}
+      <div class="ui green horizontal label">Active</div>
+    {{else if (eq model.status "inactive")}}
+      <div class="ui gray horizontal label">Inactive</div>
+    {{/if}}
+  </div>
+
+
+  <h4 class="ui dividing header">Instances</h4>
+  {{#if model.instances}}
+  <table class="ui single line table">
+    <thead>
+    <tr>
+      <th>Date</th>
+      <th>Order Refno.</th>
+    </tr>
+    </thead>
+    <tbody>
+    {{#each model.instances as |item|}}
+      <tr>
+        <td>{{moment-format (moment item.used_on) "DD/MM/YY"}}</td>
+        <td>{{item.order_refno}}</td>
+      </tr>
+    {{/each}}
+    </tbody>
+  </table>
+  {{else}}
+    <div class="ui info message">
+      <p>This promocode is unused</p>
+    </div>
+  {{/if}}
+
+  <div class="ui divider"></div>
+
+  {{#link-to "authed.discounts" class="ui button"}}Back{{/link-to}}
+  <button class="ui teal button" {{action "activate" }}>Activate</button>
+</div>

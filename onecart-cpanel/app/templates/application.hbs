@@ -1,0 +1,32 @@
+{{outlet}}
+
+{{#if serverError}}
+  <div class="overlay ui container">
+    <div class="ui grid">
+      <div class="column">
+        <div class="ui warning message">
+          <i class="close icon" {{action "dismiss"}}></i>
+          <div class="header">
+            Server error
+          </div>
+          <p>{{serverError}}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+{{/if}}
+{{#if notification}}
+  <div class="overlay ui container">
+    <div class="ui grid">
+      <div class="column">
+        <div class="ui info message">
+          <i class="close icon" {{action "dismiss"}}></i>
+          <div class="header">
+            Notification
+          </div>
+          <p>{{notification}}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+{{/if}}

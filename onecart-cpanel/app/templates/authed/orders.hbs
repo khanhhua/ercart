@@ -1,0 +1,22 @@
+<table class="ui single line table">
+  <thead>
+  <tr>
+    <th>ID</th>
+    <th>Refno</th>
+    <th>Total</th>
+    <th>Actions</th>
+  </tr>
+  </thead>
+  <tbody>
+  {{#each model as |order|}}
+    <tr>
+      <td>{{order.id}}</td>
+      <td>{{order.refno}}</td>
+      <td>{{order.total}}</td>
+      <td>
+        {{#link-to "authed.order-detail" order.id }}View{{/link-to}}
+      </td>
+    </tr>
+  {{/each}}
+  </tbody>
+</table>
