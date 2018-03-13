@@ -1,6 +1,5 @@
 import Ember from 'ember';
 import Route from '@ember/routing/route';
-import CryptoJS from 'cryptojs';
 
 export default Route.extend({
   model() {

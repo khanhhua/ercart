@@ -1,3 +1,5 @@
+/* global JSEncrypt:true */
+
 import Ember from 'ember';
 import Service from '@ember/service';
 
@@ -5,7 +7,9 @@ export default Service.extend({
   login(appid, password) {
     return Ember.$.ajax('/api/auth/public-enc-key').promise()
       .then(publicKey => {
-        const encPassword = CryptoJS.AES.encrypt(password, publicKey);
+        const encryptor = new JSEncrypt();
+        encryptor.setPublicKey(publicKey);
+        const encPassword = encryptor.encrypt(password);
 
         return Ember.$.ajax('/api/auth/login', {
           method: 'POST',
