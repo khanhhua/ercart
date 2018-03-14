@@ -17,6 +17,7 @@
   create_app/1,
   app_exists/1,
   get_app/1,
+  app_authorize/2,
   create_product/2,
   get_product/2,
   get_products/2,
@@ -53,6 +54,9 @@ get_app(AppID) ->
   gen_server:call(?SERVER, {get_app, AppID}).
 app_exists(AppID) ->
   gen_server:call(?SERVER, {app_exists, AppID}).
+app_authorize(AppID, HashedPass) ->
+  gen_server:call(?SERVER, {app_authorize, AppID, HashedPass}).
+
 create_product(AppID, Product) ->
   gen_server:call(?SERVER, {create_product, AppID, Product}).
 
@@ -144,6 +148,10 @@ init([]) ->
     {keypos, #app_stats.id},
     {file, filename:join(DataDir, "app_stats.dat")}
   ]),
+  {ok, app_auth} = dets:open_file(app_auth, [
+    {keypos, #app_auth.id},
+    {file, filename:join(DataDir, "app_auth.dat")}
+  ]),
   {ok, cart} = dets:open_file(cart, [
     {keypos, #cart.id},
     {file, filename:join(DataDir, "cart.dat")}
@@ -204,6 +212,16 @@ handle_call({app_exists, AppID}, _From, State) ->
     [_] -> {reply, true, State};
     _ -> {reply, false, State}
   end;
+handle_call({app_authorize, AppID, HashedPass}, _From, State) ->
+  io:format("Authorize as owner of AppID: ~p, hashed pass: ~p...~n", [AppID, HashedPass]),
+  case dets:lookup(app_auth, AppID) of
+    [App] -> case App#app_auth.passwd of
+               HashedPass -> {reply, {ok, owner}, State};
+               _ -> {reply, {error, permission}, State}
+             end;
+    _ -> {reply, {error, permission}, State}
+  end;
+
 handle_call({create_cart, AppID}, _From, State) ->
   CartID = rand:uniform(1000000),
 

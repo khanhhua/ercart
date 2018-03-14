@@ -10,6 +10,7 @@
 
 -record(app, {id, ownerid, paypal_merchant_id}).
 -record(app_stats, {id, last_order_no}).
+-record(app_auth, {id, passwd}).
 -record(product, {id, name, price}).
 -record(cart, {id, appid, items = []}).
 -record(order, {id, transactionid, refno, status, items = [], total}).

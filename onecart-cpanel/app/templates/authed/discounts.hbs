@@ -1,0 +1,40 @@
+<div class="ui secondary menu">
+  <div class="right menu">
+    {{#link-to "authed.discount-create" class="icon item"}}
+      <i class="plus icon"></i>&nbsp;New Discount
+    {{/link-to}}
+  </div>
+</div>
+
+<table class="ui single line table">
+  <thead>
+  <tr>
+    <th>ID</th>
+    <th>Promocode</th>
+    <th>Expiry</th>
+    <th>Actions</th>
+  </tr>
+  </thead>
+  <tbody>
+  {{#each model as |discount|}}
+    <tr>
+      <td>{{discount.id}}</td>
+      <td>
+        {{discount.promocode}}
+        {{#if (eq discount.status "active")}}
+        <div class="ui green horizontal label">Active</div>
+        {{else if (eq discount.status "inactive")}}
+          <div class="ui gray horizontal label">Inactive</div>
+        {{/if}}
+      </td>
+      <td>{{moment-format discount.expiry "DD/MM/YY"}}</td>
+      <td>
+        {{#link-to "authed.discount-detail" discount.id}}View{{/link-to}}
+        {{#unless discount.instances}}
+        {{#link-to "authed.discount-edit" discount.id}}Edit{{/link-to}}
+        {{/unless}}
+      </td>
+    </tr>
+  {{/each}}
+  </tbody>
+</table>

@@ -1,0 +1,36 @@
+<div class="ui form">
+  {{#each model as |setting|}}
+  {{#if (eq setting.id 'payment.paypal.payer_id')}}
+  <h4 class="ui dividing header">PayPal</h4>
+  <div class="ui attached segment">
+    {{#if isPaypalUpdated}}
+    <div class="ui positive">
+      <p>
+        Your PayPal Account has been connected.
+      </p>
+    </div>
+    {{/if}}
+
+    <div class="field inline">
+      <label>PayPal ID</label>
+      {{input value=setting.value placeholder="merchant@example.com" size=30 }}
+    </div>
+    {{#if (eq isEditingPaypal false)}}
+    <button class="ui teal right labeled icon button" {{action "authorize" "paypal" setting.value }}>
+      <i class="icon key"></i> Update and Authorize
+    </button>
+    {{/if}}
+  </div>
+  <div class="ui bottom attached info message">
+    <p>
+      Click the "Update and Authorize" button to grant OneCart the needed permission to act on your behalf.
+    </p>
+  </div>
+
+  <div class="ui divider"></div>
+  {{/if}}
+  {{/each}}
+
+  <button class="ui red button">Cancel</button>
+  <button class="ui primary button" {{action "save" model}}>Save</button>
+</div>

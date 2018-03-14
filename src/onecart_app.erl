@@ -30,6 +30,8 @@ start(_StartType, _StartArgs) ->
   [EncSKey] = public_key:pem_decode(RawSKey),
   SKey = public_key:pem_entry_decode(EncSKey),
 
+  {ok, Salt} = application:get_env(onecart, salt),
+
   Dispatch = cowboy_router:compile([
     %% {HostMatch, list({PathMatch, Handler, InitialState})}
     {'_', [
@@ -37,8 +39,6 @@ start(_StartType, _StartArgs) ->
       {"/static/lib/[...]", cowboy_static, {priv_dir, onecart, "static/lib/static"}},
       {"/api/apps", onecart_http, #{resource => 'apps'}},
       {"/:appid/api/cart", onecart_http, #{resource => 'cart', pkey => PKey, skey => SKey}},
-      {"/:appid/api/products", onecart_http, #{resource => 'products'}},
-      {"/:appid/api/products/:productid", onecart_http, #{resource => 'products'}},
       {"/:appid/api/checkout", onecart_http, #{resource => 'checkout'}},
       {"/:appid/api/pay", onecart_http, #{resource => 'pay'}},
       {"/:appid/api/ipn", onecart_http, #{resource => 'ipn', skey => SKey}},
@@ -48,9 +48,25 @@ start(_StartType, _StartArgs) ->
     ]}
   ]),
   %% Name, NbAcceptors, TransOpts, ProtoOpts
-  cowboy:start_clear(my_http_listener,
+  cowboy:start_clear(public_http_listener,
     [{port, 8080}],
     #{env => #{dispatch => Dispatch}}
+  ),
+  cowboy:start_clear(cpanel_http_listener,
+    [{port, 9090}],
+    #{env => #{dispatch => cowboy_router:compile([
+      %% {HostMatch, list({PathMatch, Handler, InitialState})}
+      {'_', [
+        {"/api/auth/public-enc-key", onecart_cpanel, #{resource => 'public-enc-key', pkeyraw => RawPKey}},
+        {"/api/auth/login", onecart_cpanel, #{action => 'login', pkey => PKey, skey => SKey, salt => Salt}},
+        {"/api/products", onecart_cpanel, #{resource => 'products'}},
+        {"/api/products/:productid", onecart_cpanel, #{resource => 'products'}},
+
+        {"/assets/[...]", cowboy_static, {priv_dir, onecart, "static/cpanel/assets"}},
+        {"/[...]", cowboy_static, {priv_file, onecart, "static/cpanel/index.html"}},
+        {"/", cowboy_static, {priv_file, onecart, "static/cpanel/index.html"}}
+      ]}
+    ])}}
   ),
 
   onecart_sup:start_link(#{pkey => PKey}).

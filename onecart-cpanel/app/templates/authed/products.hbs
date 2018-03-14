@@ -1,0 +1,30 @@
+<div class="ui secondary menu">
+  <div class="right menu">
+  {{#link-to "authed.product-create" class="icon item"}}
+    <i class="plus icon"></i>&nbsp;New Product
+  {{/link-to}}
+  </div>
+</div>
+
+<table class="ui single line table">
+  <thead>
+  <tr>
+    <th>ID</th>
+    <th>Name</th>
+    <th>Price</th>
+    <th>Actions</th>
+  </tr>
+  </thead>
+  <tbody>
+  {{#each model as |product|}}
+  <tr>
+    <td>{{product.id}}</td>
+    <td>{{product.name}}</td>
+    <td>{{product.price}}</td>
+    <td>
+      {{#link-to "authed.product-edit" product.id}}Edit{{/link-to}}
+    </td>
+  </tr>
+  {{/each}}
+  </tbody>
+</table>

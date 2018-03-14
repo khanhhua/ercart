@@ -1,0 +1,20 @@
+<div class="main ui container">
+  <div class="ui page header">
+    OneCart :: CPanel
+
+    <button class="ui right floated red button" {{action "logout" }}>Logout</button>
+  </div>
+  <div class="ui grid">
+    <aside class="four wide column">
+      <div class="ui secondary vertical menu">
+        {{#link-to "authed.products" class="item" }}Products{{/link-to}}
+        {{#link-to "authed.orders" class="item" }}Orders{{/link-to}}
+        {{#link-to "authed.payment" class="item" }}Payment{{/link-to}}
+        {{#link-to "authed.discounts" class="item" }}Discounts{{/link-to}}
+      </div>
+    </aside>
+    <div class="twelve wide column">
+      {{outlet}}
+    </div>
+  </div>
+</div>

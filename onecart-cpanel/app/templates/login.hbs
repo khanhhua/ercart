@@ -1,0 +1,20 @@
+<div class="login ui text container">
+  <h1 class="ui header">OneCart</h1>
+  <div class="ui divider"></div>
+  <div class="ui two column centered grid">
+    <div class="column">
+      <div class="ui form">
+        <div class="field">
+          <label>AppID</label>
+          {{input type="text" value=model.appid}}
+        </div>
+        <div class="field">
+          <label>Password</label>
+          {{input type="password" value=model.password}}
+        </div>
+
+        <button id="btn-login" class="ui teal button" {{action "login" model}}>Login</button>
+      </div>
+    </div>
+  </div>
+</div>
