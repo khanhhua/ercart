@@ -50,7 +50,7 @@ action_login(Req0 = #{method := <<"POST">>}, State = #{skey := SKey, salt := Sal
   io:format("Credentials (decrypted pwd): ~p~n", [Password]),
 
   io:format("Salt: ~p~n", [Salt]),
-  HashedPass = hash(Password, list_to_binary(Salt)),
+  HashedPass = hash(Password, list_to_binary(Salt)), % persisted password :: sha256(sha1(raw), salt)
   io:format("Hashed pwd: ~p~n", [HashedPass]),
 
   Authed = case onecart_db:app_authorize(AppID, HashedPass) of
