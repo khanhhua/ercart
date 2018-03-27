@@ -15,9 +15,13 @@
 -export([init/2, terminate/3]).
 init(Req0, State = #{resource := 'public-enc-key'}) ->
   resource_public_enc_key(Req0, State);
-init(Req0, State = #{resource := Resource}) ->
-  AppID = cowboy_req:binding('appid', Req0),
-
+init(Req0, State = #{resource := Resource, skey := SKey }) ->
+  Authorization = cowboy_req:header(<<"authorization">>, Req0),
+  io:format("Authorization: ~p~n",[Authorization]),
+  <<"Bearer ", JwtToken/binary>> = Authorization,
+  {ok, Claims} = jwt:decode(JwtToken, SKey),
+  AppID = maps:get(<<"sub">>, Claims),
+  io:format("AppID: ~p~n",[AppID]),
 %% Guard against invalid App IDs
   {ok, Req, _State} = case onecart_db:app_exists(AppID) of
     true -> case Resource of
