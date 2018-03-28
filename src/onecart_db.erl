@@ -64,12 +64,7 @@ get_product(AppID, ProductID) ->
   gen_server:call(?SERVER, {get_product, AppID, ProductID}).
 
 get_products(AppID, Params) ->
-  Products = [
-    #product{id = <<"P00001">>, name = <<"Shampoo Clear">>},
-    #product{id = <<"P00002">>, name = <<"Tide Pod">>}
-  ],
-
-  {ok, Products}.
+  gen_server:call(?SERVER, {get_products, AppID, Params}).
 
 get_order(AppID, {transactionid, TxID}) ->
   gen_server:call(?SERVER, {get_order, AppID, {transactionid, TxID}});
@@ -280,6 +275,13 @@ handle_call({get_product, AppID, ProductID}, _From, State) ->
     [Product] -> {reply, {ok, Product}, State};
     Anything ->
       io:format("Error: ~p", [Anything]),
+      {reply, {error, "Could not find product"}, State}
+  end;
+handle_call({get_products, AppID, Params}, _From, State) ->
+  case dets:match_object(product, #product{id = '$1', name = '$2', price = '$3'}) of
+    Products -> {reply, {ok, Products}, State};
+    {error, Reason} ->
+      io:format("Error: ~p", [Reason]),
       {reply, {error, "Could not find product"}, State}
   end;
 handle_call({create_order, AppID, Items}, _From, State) ->
