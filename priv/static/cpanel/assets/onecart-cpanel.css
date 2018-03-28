@@ -1,0 +1,33 @@
+.login.ui.container {
+  margin-top: 5%;
+}
+.login #btn-login {
+  display: block;
+  margin: 0 auto;
+}
+
+.header.page {
+  padding-top: 2em;
+}
+
+.ui.vertical.menu {
+  width: 100%;
+}
+
+@keyframes overlay-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.overlay.ui.container {
+  position: absolute;
+  top: 1%;
+  left: 50%;
+  transform: translateX(-50%);
+
+  opacity: 0;
+  animation: overlay-fade-in 300ms 50ms forwards ease-in;
+}
