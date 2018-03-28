@@ -60,7 +60,7 @@ start(_StartType, _StartArgs) ->
         {"/api/auth/public-enc-key", onecart_cpanel, #{resource => 'public-enc-key', pkeyraw => RawPKey}},
         {"/api/auth/login", onecart_cpanel, #{action => 'login', pkey => PKey, skey => SKey, salt => Salt}},
         {"/api/products", onecart_cpanel, #{resource => 'products', skey => SKey}},
-        {"/api/products/:productid", onecart_cpanel, #{resource => 'products', skey => SKey}},
+        {"/api/products/:productid", onecart_cpanel, #{resource => 'product', skey => SKey}},
 
         {"/assets/[...]", cowboy_static, {priv_dir, onecart, "static/cpanel/assets"}},
         {"/[...]", cowboy_static, {priv_file, onecart, "static/cpanel/index.html"}},

@@ -25,6 +25,7 @@ init(Req0, State = #{resource := Resource, skey := SKey }) ->
 %% Guard against invalid App IDs
   {ok, Req, _State} = case onecart_db:app_exists(AppID) of
     true -> case Resource of
+              product -> resource_product(Req0, State#{appid => AppID});
               products -> resource_products(Req0, State#{appid => AppID});
               orders -> resource_orders(Req0, State#{appid => AppID})
             end;
@@ -79,13 +80,14 @@ action_login(Req0 = #{method := <<"POST">>}, State = #{skey := SKey, salt := Sal
       {ok, cowboy_req:reply(403, Req0), State}
   end.
 
-resource_products(Req0 = #{method := <<"GET">>}, State = #{appid := AppID}) ->
+resource_product(Req0 = #{method := <<"GET">>}, State = #{appid := AppID}) ->
   ProductID = cowboy_req:binding(productid, Req0),
   Headers = #{<<"content-type">> => <<"application/json">>},
   {ok,Product} = onecart_db:get_product(AppID, ProductID),
   Req = cowboy_req:reply(200, Headers,
     jsx:encode(#{id => Product#product.id, name => Product#product.name}), Req0),
-  {ok, Req, State};
+  {ok, Req, State}.
+
 resource_products(Req0 = #{method := <<"POST">>}, State = #{appid := AppID}) ->
   Headers = #{<<"content-type">> => <<"application/json">>},
   {ok, Body, _} = cowboy_req:read_body(Req0),
@@ -110,15 +112,15 @@ resource_products(Req0, State = #{appid := AppID}) ->
 
   Req = cowboy_req:reply(200, #{
     <<"content-type">> => <<"application/json">>
-  }, jsx:encode(lists:map(
+  }, jsx:encode(#{products => lists:map(
     fun (It) ->
       #{
         id => It#product.id,
         name => It#product.name,
-        price => It#order_item.price
+        price => It#product.price
       }
     end, Products)
-  ), Req0),
+  }), Req0),
   {ok, Req, State}.
 
 resource_orders(Req0 = #{method := <<"POST">>},
