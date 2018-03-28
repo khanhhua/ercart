@@ -9,6 +9,7 @@
     cowboy,
     hackney,
     jsx,
+    jwt,
     quickrand,
     uuid,
     hashids
