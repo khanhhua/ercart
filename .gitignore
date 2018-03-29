@@ -19,4 +19,3 @@ _build
 rebar3.crashdump
 .DS_Store
 config
-*.iml
