@@ -1,6 +1,6 @@
 {application, onecart,
- [{description, "An OTP application"},
-  {vsn, "0.2.0"},
+ [{description, "OneCart OTP Application"},
+  {vsn, "0.2.1"},
   {registered, []},
   {mod, { onecart_app, []}},
   {applications,
