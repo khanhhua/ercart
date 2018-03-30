@@ -4,12 +4,13 @@ export default Route.extend({
   model () {
     return {
       ownerid: '',
-      password: ''
+      password: '',
+      recaptcha: ''
     };
   },
   actions: {
-    register({ownerid, password}) {
-      if (!this.controllerFor('register').validate({ownerid, password})) {
+    register({ownerid, password, recaptcha}) {
+      if (!this.controllerFor('register').validate({ownerid, password, recaptcha})) {
         return;
       }
 
@@ -24,6 +25,7 @@ export default Route.extend({
             method: 'POST',
             contentType: 'application/json',
             data: JSON.stringify({
+              recaptcha,
               ownerid,
               password: encPassword.toString()
             })
