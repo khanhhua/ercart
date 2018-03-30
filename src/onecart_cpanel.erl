@@ -13,6 +13,8 @@
 -include("records.hrl").
 %% API
 -export([init/2, terminate/3]).
+init(Req0, State = #{resource := apps, skey := _SKey }) ->
+  resource_apps(Req0, State);
 init(Req0, State = #{resource := 'public-enc-key'}) ->
   resource_public_enc_key(Req0, State);
 init(Req0, State = #{resource := Resource, skey := SKey }) ->
@@ -38,6 +40,49 @@ init(Req0, State = #{action := login}) ->
 
 terminate(_Reason, _Req, _State) ->
   ok.
+
+resource_apps(Req0=#{method := <<"POST">>}, State = #{skey := SKey, salt := Salt}) ->
+  Headers = #{<<"content-type">> => <<"application/json">>},
+  {ok, Body, _} = cowboy_req:read_body(Req0),
+  Data = jsx:decode(Body, [return_maps]),
+  OwnerID = maps:get(<<"ownerid">>, Data),
+  App = #app{
+    ownerid = OwnerID,
+    paypal_merchant_id = maps:get(<<"paypal_merchant_id">>, Data, undefined)
+  },
+  io:format("Credentials (base64.enc): ~p~n", [Data]),
+  EncPassword = base64:decode(maps:get(<<"password">>, Data)),
+  io:format("Credentials (decoded enc): ~p~n", [EncPassword]),
+  Password = decrypt(EncPassword, SKey),
+  io:format("Credentials (decrypted pwd): ~p~n", [Password]),
+
+  io:format("Salt: ~p~n", [Salt]),
+  HashedPass = hash(Password, list_to_binary(Salt)), % persisted password :: sha256(sha1(raw), salt)
+  io:format("Hashed pwd: ~p~n", [HashedPass]),
+
+  case onecart_db:find_app([{ownerid, OwnerID}]) of
+    {ok, []} -> case onecart_db:create_app(App, HashedPass) of
+      {ok, AppID} -> {ok, cowboy_req:reply(200,
+        Headers,
+        jsx:encode(#{<<"appid">> => AppID}),
+        Req0), State};
+      {error, Reason} ->
+        {ok, cowboy_req:reply(500,
+          Headers,
+          jsx:encode(#{<<"error">> => Reason}),
+          Req0), State}
+      end;
+    {ok, Apps} when length(Apps) > 0 ->
+      {ok, cowboy_req:reply(400,
+        Headers,
+        jsx:encode(#{<<"error">> => <<"App quota per account reached">>}),
+        Req0), State};
+    {error, Reason} ->
+      {ok, cowboy_req:reply(500,
+        Headers,
+        jsx:encode(#{<<"error">> => Reason}),
+        Req0), State}
+  end.
 
 resource_public_enc_key(Req0 = #{method := <<"GET">>}, State = #{pkeyraw := PKeyRaw}) ->
   io:format("Retrieving PKey (public key)~n"),
