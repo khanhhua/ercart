@@ -1,9 +1,14 @@
-.login.ui.container {
+.login.ui.container, .register.ui.container {
   margin-top: 5%;
 }
-.login #btn-login {
-  display: block;
-  margin: 0 auto;
+.login .buttons, .register .buttons {
+  display: flex;
+  justify-content: center;
+}
+.login .buttons .button,
+.register .buttons .button {
+  flex-basis: 10px;
+  flex-grow: 0;
 }
 
 .header.page {

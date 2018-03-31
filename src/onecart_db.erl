@@ -14,9 +14,10 @@
 %% API
 -export([start_link/0]).
 -export([
-  create_app/1,
+  create_app/2,
   app_exists/1,
   get_app/1,
+  find_app/1,
   app_authorize/2,
   create_product/2,
   get_product/2,
@@ -48,12 +49,14 @@
 %%% API
 %%%===================================================================
 
-create_app(OwnerID) ->
-  gen_server:call(?SERVER, {create_app, OwnerID}).
+create_app(OwnerID, HashedPass) ->
+  gen_server:call(?SERVER, {create_app, OwnerID, HashedPass}).
 get_app(AppID) ->
   gen_server:call(?SERVER, {get_app, AppID}).
 app_exists(AppID) ->
   gen_server:call(?SERVER, {app_exists, AppID}).
+find_app([{ownerid, OwnerID}]) ->
+  gen_server:call(?SERVER, {find_app, [{ownerid, OwnerID}]}).
 app_authorize(AppID, HashedPass) ->
   gen_server:call(?SERVER, {app_authorize, AppID, HashedPass}).
 
@@ -161,7 +164,9 @@ init([]) ->
   ]),
 
   {ok, HashidsSalt} = application:get_env(onecart, hashids_salt),
-  HashidsContext = hashids:new([{salt, HashidsSalt}, {min_hash_length, 8}]),
+  HashidsContext = hashids:new([{salt, HashidsSalt},
+                                {min_hash_length, 8},
+                                {default_alphabet, "abcdefghijklmnopqrstuvwxxyz0123456789"}]),
 
   quickrand:seed(),
 
@@ -182,12 +187,13 @@ init([]) ->
   {noreply, NewState :: #state{}, timeout() | hibernate} |
   {stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
   {stop, Reason :: term(), NewState :: #state{}}).
-handle_call({create_app, App}, _From, State) ->
+handle_call({create_app, App, HashedPass}, _From, State) ->
   HashidsContext = State#state.hashids_ctx,
   AppID = list_to_binary(hashids:encode(HashidsContext, erlang:system_time())),
 
   case dets:insert_new(app, App#app{id = AppID}) of
     true ->
+      dets:insert(app_auth, #app_auth{id = AppID, passwd = HashedPass}),
       case dets:insert_new(app_stats, #app_stats{id = AppID}) of
         true -> {reply, {ok, AppID}, State};
         {error, Reason} -> {reply, {error, Reason}, State}
@@ -206,6 +212,10 @@ handle_call({app_exists, AppID}, _From, State) ->
   case dets:lookup(app, AppID) of
     [_] -> {reply, true, State};
     _ -> {reply, false, State}
+  end;
+handle_call({find_app, [{ownerid, OwnerID}]}, _From, State) ->
+  case dets:match_object(app, #app{id = '$1', paypal_merchant_id = '$2', ownerid = OwnerID}) of
+    Apps -> {reply, {ok, Apps}, State}
   end;
 handle_call({app_authorize, AppID, HashedPass}, _From, State) ->
   io:format("Authorize as owner of AppID: ~p, hashed pass: ~p...~n", [AppID, HashedPass]),
