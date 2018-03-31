@@ -2,12 +2,15 @@ import Route from '@ember/routing/route';
 
 export default Route.extend({
   beforeModel(transition) {
-    const {token} = transition.queryParams;
-    if (this.get('authService.isAuthed')) {
+    const {token: uriFriendlyToken} = transition.queryParams;
+    if (uriFriendlyToken && transition.sequence === 0) {
+      const token = decodeURIComponent(uriFriendlyToken);
+      window.localStorage.setItem('onecart-token', token);
+      const [,payload,] = token.split('.');
+      const claims = JSON.parse(atob(payload));
+      this.transitionTo('authed.products', {appid: claims.sub});
+    } else if (this.get('authService.isAuthed')) {
       return true;
-    } else if (token) {
-      window.localStorage.setItem('onecart-token', decodeURIComponent(token));
-      this.transitionTo('authed.products');
     } else {
       this.transitionTo('login');
     }
