@@ -22,7 +22,7 @@ export default Service.extend({
         }).promise();
       })
       .then(({jwt}) => {
-        window.localStorage.setItem('onecart-token', jwt);
+        return jwt;
       });
   },
   logout() {
