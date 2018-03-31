@@ -21,6 +21,7 @@ Router.map(function() {
     this.route('payment', { path: 'settings/payment' });
     this.route('order-detail', { path: 'orders/:id' });
   });
+  this.route('register');
 });
 
 export default Router;
