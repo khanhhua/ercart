@@ -11,8 +11,15 @@ export default Route.extend({
   actions: {
     login({appid, password}) {
       this.get('authService').login(appid, password)
-        .then(() => {
-          this.transitionTo('authed.products', {appid});
+        .then((authToken) => {
+          const uriFriendlyToken = encodeURIComponent(authToken);
+          const host = window.location.host; // hostname + port
+
+          if (window.location.hostname === 'localhost') {
+            window.location.href = `http://${host}/authed?token=${uriFriendlyToken}`;
+          } else {
+            window.location.href = `http://${appid}.${host}/authed?token=${uriFriendlyToken}`;
+          }
         })
         .catch(error => {
           this.controllerFor('application').set('serverError', error.responseText);
