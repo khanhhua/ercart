@@ -13,6 +13,8 @@
 -include("records.hrl").
 %% API
 -export([init/2, terminate/3]).
+init(Req0, State = #{resource := apps, skey := _SKey, grecaptcha_secret := _GRecaptchaSecret }) ->
+  resource_apps(Req0, State);
 init(Req0, State = #{resource := 'public-enc-key'}) ->
   resource_public_enc_key(Req0, State);
 init(Req0, State = #{resource := Resource, skey := SKey }) ->
@@ -38,6 +40,62 @@ init(Req0, State = #{action := login}) ->
 
 terminate(_Reason, _Req, _State) ->
   ok.
+
+resource_apps(Req0=#{method := <<"POST">>}, State = #{skey := SKey, salt := Salt, grecaptcha_secret := GRecaptchaSecret}) ->
+  Headers = #{<<"content-type">> => <<"application/json">>},
+  {ok, Body, _} = cowboy_req:read_body(Req0),
+  Data = jsx:decode(Body, [return_maps]),
+
+  OwnerID = maps:get(<<"ownerid">>, Data),
+  Recaptcha = maps:get(<<"recaptcha">>, Data),
+
+  case verify_captcha(GRecaptchaSecret, Recaptcha) of
+    false ->
+      {ok, cowboy_req:reply(400,
+        Headers,
+        jsx:encode(#{<<"error">> => <<"Invalid captcha">>}),
+        Req0), State};
+    true ->
+      App = #app{
+        ownerid = OwnerID,
+        paypal_merchant_id = maps:get(<<"paypal_merchant_id">>, Data, undefined)
+      },
+      io:format("Credentials (base64.enc): ~p~n", [Data]),
+      EncPassword = base64:decode(maps:get(<<"password">>, Data)),
+      io:format("Credentials (decoded enc): ~p~n", [EncPassword]),
+      Password = decrypt(EncPassword, SKey),
+      io:format("Credentials (decrypted pwd): ~p~n", [Password]),
+
+      io:format("Salt: ~p~n", [Salt]),
+      HashedPass = hash(Password, list_to_binary(Salt)), % persisted password :: sha256(sha1(raw), salt)
+      io:format("Hashed pwd: ~p~n", [HashedPass]),
+
+      case onecart_db:find_app([{ownerid, OwnerID}]) of
+        {ok, []} -> case onecart_db:create_app(App, HashedPass) of
+                      {ok, AppID} ->
+                        io:format("Generated AppID: ~p~n", [AppID]),
+                        {ok, cowboy_req:reply(201,
+                          Headers,
+                          jsx:encode(<<"ok">>),
+                          Req0), State};
+                      {error, Reason} ->
+                        {ok, cowboy_req:reply(500,
+                          Headers,
+                          jsx:encode(#{<<"error">> => Reason}),
+                          Req0), State}
+                    end;
+        {ok, Apps} when length(Apps) > 0 ->
+          {ok, cowboy_req:reply(400,
+            Headers,
+            jsx:encode(#{<<"error">> => <<"App quota per account reached">>}),
+            Req0), State};
+        {error, Reason} ->
+          {ok, cowboy_req:reply(500,
+            Headers,
+            jsx:encode(#{<<"error">> => Reason}),
+            Req0), State}
+      end
+  end.
 
 resource_public_enc_key(Req0 = #{method := <<"GET">>}, State = #{pkeyraw := PKeyRaw}) ->
   io:format("Retrieving PKey (public key)~n"),
@@ -186,3 +244,19 @@ decrypt(Encrypted, SKey) ->
 hash(Input, Salt) ->
   <<X:256/big-unsigned-integer>> = crypto:hash(sha256, io_lib:format("~s:~s", [Salt, Input])),
   integer_to_list(X, 32).
+
+verify_captcha(GRecaptchaSecret, Recaptcha) ->
+  VerificationPayload = {form, [
+    {secret, list_to_binary(GRecaptchaSecret)},
+    {response, Recaptcha}
+  ]},
+
+  {ok, 200, _RespHeaders, ClientRef} = hackney:post(
+    <<"https://www.google.com/recaptcha/api/siteverify">>,
+    [{<<"Content-Type">>, <<"application/x-www-form-urlencoded">>}],
+    VerificationPayload,
+    [{ssl_options, [{versions, ['tlsv1']}]}]),
+
+  {ok, Verification} = hackney:body(ClientRef),
+  io:format("Verication: ~p~n", [Verification]),
+  maps:get(<<"success">>, jsx:decode(Verification, [return_maps])).

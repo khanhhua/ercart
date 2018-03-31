@@ -37,7 +37,6 @@ start(_StartType, _StartArgs) ->
     {'_', [
       {"/static/demo/[...]", cowboy_static, {priv_dir, onecart, "static/demo"}},
       {"/static/lib/[...]", cowboy_static, {priv_dir, onecart, "static/lib/static"}},
-      {"/api/apps", onecart_http, #{resource => 'apps'}},
       {"/:appid/api/cart", onecart_http, #{resource => 'cart', pkey => PKey, skey => SKey}},
       {"/:appid/api/checkout", onecart_http, #{resource => 'checkout'}},
       {"/:appid/api/pay", onecart_http, #{resource => 'pay'}},
@@ -47,6 +46,11 @@ start(_StartType, _StartArgs) ->
       {"/:appid/api/orders", onecart_http, #{resource => 'orders', hashids_ctx => HashidsContext, pkey => PKey}}
     ]}
   ]),
+
+  %% Google reCaptcha secret
+  {ok, GRecaptchaSecret} = application:get_env(onecart, grecaptcha_secret),
+  io:format("Google reCaptcha secret: ~p~n", [GRecaptchaSecret]),
+
   %% Name, NbAcceptors, TransOpts, ProtoOpts
   cowboy:start_clear(public_http_listener,
     [{port, 8080}],
@@ -57,6 +61,7 @@ start(_StartType, _StartArgs) ->
     #{env => #{dispatch => cowboy_router:compile([
       %% {HostMatch, list({PathMatch, Handler, InitialState})}
       {'_', [
+        {"/api/apps", onecart_cpanel, #{resource => 'apps', skey => SKey, salt => Salt, grecaptcha_secret => GRecaptchaSecret}},
         {"/api/auth/public-enc-key", onecart_cpanel, #{resource => 'public-enc-key', pkeyraw => RawPKey}},
         {"/api/auth/login", onecart_cpanel, #{action => 'login', pkey => PKey, skey => SKey, salt => Salt}},
         {"/api/products", onecart_cpanel, #{resource => 'products', skey => SKey}},

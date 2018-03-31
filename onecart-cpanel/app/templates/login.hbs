@@ -6,14 +6,17 @@
       <div class="ui form">
         <div class="field">
           <label>AppID</label>
-          {{input type="text" value=model.appid}}
+          {{input type="text" autocomplete="off" value=model.appid}}
         </div>
         <div class="field">
           <label>Password</label>
-          {{input type="password" value=model.password}}
+          {{input type="password" autocomplete="off" value=model.password}}
         </div>
 
-        <button id="btn-login" class="ui teal button" {{action "login" model}}>Login</button>
+        <div class="ui buttons">
+          {{#link-to "register" class="ui basic primary button"}}Register{{/link-to}}
+          <button id="btn-login" class="ui teal button" {{action "login" model}}>Login</button>
+        </div>
       </div>
     </div>
   </div>
