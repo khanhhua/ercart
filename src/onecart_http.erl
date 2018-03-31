@@ -14,8 +14,6 @@
 %% API
 -export([init/2, terminate/3]).
 
-init(Req0, State = #{resource := apps}) ->
-  resource_apps(Req0, State);
 init(Req0, State = #{resource := Resource}) ->
   AppID = cowboy_req:binding('appid', Req0),
 
@@ -38,27 +36,6 @@ init(Req0, State = #{resource := Resource}) ->
 
 terminate(_Reason, _Req, _State) ->
   ok.
-
-resource_apps(Req0=#{method := <<"POST">>}, State) ->
-  Headers = #{<<"content-type">> => <<"application/json">>},
-  {ok, Body, _} = cowboy_req:read_body(Req0),
-  Data = jsx:decode(Body, [return_maps]),
-  App = #app{
-    ownerid = maps:get(<<"ownerid">>, Data),
-    paypal_merchant_id = maps:get(<<"paypal_merchant_id">>, Data)
-  },
-
-  case onecart_db:create_app(App) of
-    {ok, AppID} -> {ok, cowboy_req:reply(200,
-      Headers,
-      jsx:encode(#{<<"appid">> => AppID}),
-      Req0), State};
-    {error, Reason} ->
-      {ok, cowboy_req:reply(400,
-        Headers,
-        jsx:encode(#{<<"error">> => Reason}),
-        Req0), State}
-  end.
 
 resource_cart(Req0=#{method := <<"POST">>}, State = #{appid := AppID, pkey := PKey}) ->
   Headers = #{<<"content-type">> => <<"application/json">>},

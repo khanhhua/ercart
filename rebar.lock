@@ -1,17 +1,14 @@
 {"1.1.0",
 [{<<"base64url">>,{pkg,<<"base64url">>,<<"0.0.1">>},1},
- {<<"certifi">>,{pkg,<<"certifi">>,<<"2.0.0">>},1},
+ {<<"certifi">>,{pkg,<<"certifi">>,<<"0.7.0">>},1},
  {<<"cowboy">>,{pkg,<<"cowboy">>,<<"2.2.2">>},0},
  {<<"cowlib">>,{pkg,<<"cowlib">>,<<"2.1.0">>},1},
- {<<"hackney">>,
-  {git,"git://github.com/benoitc/hackney.git",
-       {ref,"dca6478f35560c8e18a1c8953ec50cb4ba364838"}},
-  0},
+ {<<"hackney">>,{pkg,<<"hackney">>,<<"1.6.3">>},0},
  {<<"hashids">>,
   {git,"git://github.com/snaiper80/hashids-erlang.git",
        {ref,"c6bb42ade888558635c01b40f16d1efbebd48632"}},
   0},
- {<<"idna">>,{pkg,<<"idna">>,<<"5.1.0">>},1},
+ {<<"idna">>,{pkg,<<"idna">>,<<"1.2.0">>},1},
  {<<"jsx">>,{pkg,<<"jsx">>,<<"2.9.0">>},0},
  {<<"jwt">>,{pkg,<<"jwt">>,<<"0.1.5">>},0},
  {<<"metrics">>,{pkg,<<"metrics">>,<<"1.0.1">>},1},
@@ -19,15 +16,15 @@
  {<<"quickrand">>,{pkg,<<"quickrand">>,<<"1.7.2">>},1},
  {<<"ranch">>,{pkg,<<"ranch">>,<<"1.4.0">>},1},
  {<<"ssl_verify_fun">>,{pkg,<<"ssl_verify_fun">>,<<"1.1.1">>},1},
- {<<"unicode_util_compat">>,{pkg,<<"unicode_util_compat">>,<<"0.3.1">>},2},
  {<<"uuid">>,{pkg,<<"uuid_erl">>,<<"1.7.2">>},0}]}.
 [
 {pkg_hash,[
  {<<"base64url">>, <<"36A90125F5948E3AFD7BE97662A1504B934DD5DAC78451CA6E9ABF85A10286BE">>},
- {<<"certifi">>, <<"A0C0E475107135F76B8C1D5BC7EFB33CD3815CB3CF3DEA7AEFDD174DABEAD064">>},
+ {<<"certifi">>, <<"861A57F3808F7EB0C2D1802AFEAAE0FA5DE813B0DF0979153CBAFCD853ABABAF">>},
  {<<"cowboy">>, <<"6CDE634DA1DA8B1D17DD2B20F5F6F91AB8AC7FA1B5106D13DAD63C905AB76004">>},
  {<<"cowlib">>, <<"F73658B93DD043AF40400C3E4FD997068EBD0C617F8C8F4CD003A1A78EBF94F5">>},
- {<<"idna">>, <<"D72B4EFFEB324AD5DA3CAB1767CB16B17939004E789D8C0AD5B70F3CEA20C89A">>},
+ {<<"hackney">>, <<"D489D7CA2D4323E307BEDC4BFE684323A7BF773ECFD77938F3EE8074E488E140">>},
+ {<<"idna">>, <<"AC62EE99DA068F43C50DC69ACF700E03A62A348360126260E87F2B54ECED86B2">>},
  {<<"jsx">>, <<"D2F6E5F069C00266CAD52FB15D87C428579EA4D7D73A33669E12679E203329DD">>},
  {<<"jwt">>, <<"1BC6224ED958976A2F1ACD238ED9D499ECD9BA4B97178946AABE5E86E39B6728">>},
  {<<"metrics">>, <<"25F094DEA2CDA98213CECC3AEFF09E940299D950904393B2A29D191C346A8486">>},
@@ -35,6 +32,6 @@
  {<<"quickrand">>, <<"E856F3C69FEC00D1ACCA8E56CB452B650E838D3A9720811410F439121EFAFE59">>},
  {<<"ranch">>, <<"10272F95DA79340FA7E8774BA7930B901713D272905D0012B06CA6D994F8826B">>},
  {<<"ssl_verify_fun">>, <<"28A4D65B7F59893BC2C7DE786DEC1E1555BD742D336043FE644AE956C3497FBE">>},
- {<<"unicode_util_compat">>, <<"A1F612A7B512638634A603C8F401892AFBF99B8CE93A45041F8AACA99CADB85E">>},
  {<<"uuid">>, <<"D596C8DD01A4AE48B9D8D51832CCC8F8302BF67ACD01336AEC3FCFAE6B9D2BC2">>}]}
 ].
+
