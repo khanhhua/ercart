@@ -164,7 +164,9 @@ init([]) ->
   ]),
 
   {ok, HashidsSalt} = application:get_env(onecart, hashids_salt),
-  HashidsContext = hashids:new([{salt, HashidsSalt}, {min_hash_length, 8}]),
+  HashidsContext = hashids:new([{salt, HashidsSalt},
+                                {min_hash_length, 8},
+                                {default_alphabet, "abcdefghijklmnopqrstuvwxxyz0123456789"}]),
 
   quickrand:seed(),
 

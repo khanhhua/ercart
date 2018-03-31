@@ -72,10 +72,12 @@ resource_apps(Req0=#{method := <<"POST">>}, State = #{skey := SKey, salt := Salt
 
       case onecart_db:find_app([{ownerid, OwnerID}]) of
         {ok, []} -> case onecart_db:create_app(App, HashedPass) of
-                      {ok, AppID} -> {ok, cowboy_req:reply(200,
-                        Headers,
-                        jsx:encode(#{<<"appid">> => AppID}),
-                        Req0), State};
+                      {ok, AppID} ->
+                        io:format("Generated AppID: ~p~n", [AppID]),
+                        {ok, cowboy_req:reply(201,
+                          Headers,
+                          jsx:encode(<<"ok">>),
+                          Req0), State};
                       {error, Reason} ->
                         {ok, cowboy_req:reply(500,
                           Headers,

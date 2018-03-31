@@ -32,6 +32,8 @@ export default Route.extend({
           }).promise();
         })
         .then(() => {
+          this.controllerFor('application')
+              .set('notification', 'The AppID has been sent to your mailbox. Please check!');
           this.transitionTo('login')
         });
     }
