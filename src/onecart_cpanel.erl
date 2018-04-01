@@ -74,6 +74,8 @@ resource_apps(Req0=#{method := <<"POST">>}, State = #{skey := SKey, salt := Salt
         {ok, []} -> case onecart_db:create_app(App, HashedPass) of
                       {ok, AppID} ->
                         io:format("Generated AppID: ~p~n", [AppID]),
+                        sendmail(OwnerID, AppID),
+
                         {ok, cowboy_req:reply(201,
                           Headers,
                           jsx:encode(<<"ok">>),
@@ -260,3 +262,29 @@ verify_captcha(GRecaptchaSecret, Recaptcha) ->
   {ok, Verification} = hackney:body(ClientRef),
   io:format("Verication: ~p~n", [Verification]),
   maps:get(<<"success">>, jsx:decode(Verification, [return_maps])).
+
+sendmail(Email, AppID) ->
+  {ok, APIKey} = application:get_env(onecart, sendgrid_apikey),
+  {ok, Endpoint} = application:get_env(onecart, sendgrid_endpoint),
+
+  Text = list_to_binary(io_lib:format("AppID: ~s", [AppID])),
+  Payload = jsx:encode(#{
+    personalizations => [
+      #{to => [#{email => Email}]}
+    ],
+    from => #{email => <<"noreply@onecart.sg">>},
+    subject => <<"Welcome to OneCart">>,
+    content => [#{type => <<"text/plain">>, value => Text}]
+  }),
+  {ok, Status, _ResHeaders, _ClientRef} = hackney:post(
+    Endpoint,
+    [
+      {<<"Content-Type">>, <<"application/json">>},
+      {<<"Authorization">>, list_to_binary(io_lib:format("Bearer ~s", [APIKey]))}
+    ],
+    Payload, [{ssl_options, [{versions, ['tlsv1']}]}]),
+
+  if
+    Status =:= 202 -> ok;
+    true -> error
+  end.
