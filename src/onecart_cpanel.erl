@@ -74,6 +74,7 @@ resource_apps(Req0=#{method := <<"POST">>}, State = #{skey := SKey, salt := Salt
         {ok, []} -> case onecart_db:create_app(App, HashedPass) of
                       {ok, AppID} ->
                         io:format("Generated AppID: ~p~n", [AppID]),
+                        sendmail(OwnerID, AppID),
                         {ok, cowboy_req:reply(201,
                           Headers,
                           jsx:encode(<<"ok">>),
@@ -139,11 +140,13 @@ action_login(Req0 = #{method := <<"POST">>}, State = #{skey := SKey, salt := Sal
   end.
 
 resource_product(Req0 = #{method := <<"GET">>}, State = #{appid := AppID}) ->
-  ProductID = cowboy_req:binding(productid, Req0),
   Headers = #{<<"content-type">> => <<"application/json">>},
-  {ok,Product} = onecart_db:get_product(AppID, ProductID),
+
+  ID = cowboy_req:binding(productid, Req0),
+  ProductID = ?TO_APPID_ID(AppID, ID),
+  {ok,Product} = onecart_db:get_product(ProductID),
   Req = cowboy_req:reply(200, Headers,
-    jsx:encode(#{id => Product#product.id, name => Product#product.name}), Req0),
+    jsx:encode(#{id => ?TO_ID(Product#product.appid_id), name => Product#product.name}), Req0),
   {ok, Req, State}.
 
 resource_products(Req0 = #{method := <<"POST">>}, State = #{appid := AppID}) ->
@@ -152,16 +155,17 @@ resource_products(Req0 = #{method := <<"POST">>}, State = #{appid := AppID}) ->
   JSON = jsx:decode(Body, [return_maps]),
   Data = maps:get(<<"product">>, JSON),
 
+  ProductID = ?TO_APPID_ID(AppID, maps:get(<<"id">>, Data)),
   Product = #product{
-    id = maps:get(<<"id">>, Data),
+    appid_id = ProductID,
     name = maps:get(<<"name">>, Data),
     price = maps:get(<<"price">>, Data)
   },
-  {ok, Product} = onecart_db:create_product(AppID, Product),
+  {ok, Product} = onecart_db:create_product(Product),
 
   Req = cowboy_req:reply(200, Headers,
     jsx:encode(#{product => #{
-      id => Product#product.id,
+      id => ?TO_ID(Product#product.appid_id),
       name => Product#product.name,
       price => Product#product.price
     }}), Req0),
@@ -174,7 +178,7 @@ resource_products(Req0, State = #{appid := AppID}) ->
   }, jsx:encode(#{products => lists:map(
     fun (It) ->
       #{
-        id => It#product.id,
+        id => ?TO_ID(It#product.appid_id),
         name => It#product.name,
         price => It#product.price
       }
@@ -212,7 +216,7 @@ resource_orders(Req0 = #{method := <<"POST">>},
       }, jsx:encode(
         #{
           <<"order">> => #{
-            <<"id">> => Order#order.id,
+            <<"id">> => ?TO_ID(Order#order.appid_id),
             <<"refno">> => OrderUpdated#order.refno
           },
           <<"next_cid">> => base64:encode(EncCardID)
@@ -230,7 +234,7 @@ resource_orders(Req0, State = #{appid := AppID}) ->
   Req = cowboy_req:reply(200, #{
     <<"content-type">> => <<"application/json">>
   }, jsx:encode(lists:map(
-    fun (It) -> #{id => It#order.id} end,
+    fun (It) -> #{id => ?TO_ID(It#order.appid_id)} end,
     Orders)), Req0),
   {ok, Req, State}.
 %%
@@ -260,3 +264,29 @@ verify_captcha(GRecaptchaSecret, Recaptcha) ->
   {ok, Verification} = hackney:body(ClientRef),
   io:format("Verication: ~p~n", [Verification]),
   maps:get(<<"success">>, jsx:decode(Verification, [return_maps])).
+
+sendmail(Email, AppID) ->
+  {ok, APIKey} = application:get_env(onecart, sendgrid_apikey),
+  {ok, Endpoint} = application:get_env(onecart, sendgrid_endpoint),
+
+  Text = list_to_binary(io_lib:format("AppID: ~s", [AppID])),
+  Payload = jsx:encode(#{
+    personalizations => [
+      #{to => [#{email => Email}]}
+    ],
+    from => #{email => <<"noreply@onecart.sg">>},
+    subject => <<"Welcome to OneCart">>,
+    content => [#{type => <<"text/plain">>, value => Text}]
+  }),
+  {ok, Status, _ResHeaders, _ClientRef} = hackney:post(
+    Endpoint,
+    [
+      {<<"Content-Type">>, <<"application/json">>},
+      {<<"Authorization">>, list_to_binary(io_lib:format("Bearer ~s", [APIKey]))}
+    ],
+    Payload, [{ssl_options, [{versions, ['tlsv1']}]}]),
+
+  if
+    Status =:= 202 -> ok;
+    true -> error
+  end.
