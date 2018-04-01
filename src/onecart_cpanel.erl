@@ -75,7 +75,6 @@ resource_apps(Req0=#{method := <<"POST">>}, State = #{skey := SKey, salt := Salt
                       {ok, AppID} ->
                         io:format("Generated AppID: ~p~n", [AppID]),
                         sendmail(OwnerID, AppID),
-
                         {ok, cowboy_req:reply(201,
                           Headers,
                           jsx:encode(<<"ok">>),
