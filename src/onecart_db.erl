@@ -19,14 +19,15 @@
   get_app/1,
   find_app/1,
   app_authorize/2,
-  create_product/2,
-  get_product/2,
+  create_product/1,
+  get_product/1,
   get_products/2,
+  get_order/1,
   get_order/2,
   get_orders/2,
   create_cart/1,
-  get_cart/2,
-  update_cart/3,
+  get_cart/1,
+  update_cart/2,
   remove_cart_item/3,
   create_order/2,
   update_order/2,
@@ -60,19 +61,20 @@ find_app([{ownerid, OwnerID}]) ->
 app_authorize(AppID, HashedPass) ->
   gen_server:call(?SERVER, {app_authorize, AppID, HashedPass}).
 
-create_product(AppID, Product) ->
-  gen_server:call(?SERVER, {create_product, AppID, Product}).
+create_product(Product) ->
+  gen_server:call(?SERVER, {create_product, Product}).
 
-get_product(AppID, ProductID) ->
-  gen_server:call(?SERVER, {get_product, AppID, ProductID}).
+get_product(ProductID) ->
+  gen_server:call(?SERVER, {get_product, ProductID}).
 
 get_products(AppID, Params) ->
   gen_server:call(?SERVER, {get_products, AppID, Params}).
 
 get_order(AppID, {transactionid, TxID}) ->
-  gen_server:call(?SERVER, {get_order, AppID, {transactionid, TxID}});
-get_order(AppID, OrderID) ->
-  gen_server:call(?SERVER, {get_order, AppID, OrderID}).
+  gen_server:call(?SERVER, {get_order, AppID, {transactionid, TxID}}).
+
+get_order(OrderID) ->
+  gen_server:call(?SERVER, {get_order, OrderID}).
 
 get_orders(AppID, Params) -> {ok, []}.
 
@@ -87,14 +89,14 @@ get_orders(AppID, Params) -> {ok, []}.
 create_cart(AppID) ->
   gen_server:call(?SERVER, {create_cart, AppID}).
 
-get_cart(AppID, CartID) ->
-  gen_server:call(?SERVER, {get_cart, AppID, CartID}).
+get_cart(CartID) ->
+  gen_server:call(?SERVER, {get_cart, CartID}).
 
 remove_cart_item(AppID, CartID, ProductID) ->
   gen_server:call(?SERVER, {remove_cart_item, AppID, CartID, ProductID}).
 
-update_cart(AppID, CartID, ItemsToUpdate) ->
-  gen_server:call(?SERVER, {update_cart, AppID, CartID, ItemsToUpdate}).
+update_cart(CartID, ItemsToUpdate) ->
+  gen_server:call(?SERVER, {update_cart, CartID, ItemsToUpdate}).
 
 create_order(AppID, Items) ->
   gen_server:call(?SERVER, {create_order, AppID, Items}).
@@ -151,15 +153,15 @@ init([]) ->
     {file, filename:join(DataDir, "app_auth.dat")}
   ]),
   {ok, cart} = dets:open_file(cart, [
-    {keypos, #cart.id},
+    {keypos, #cart.appid_id},
     {file, filename:join(DataDir, "cart.dat")}
   ]),
   {ok, order} = dets:open_file(order, [
-    {keypos, #order.id},
+    {keypos, #order.appid_id},
     {file, filename:join(DataDir, "orders.dat")}
   ]),
   {ok, product} = dets:open_file(product, [
-    {keypos, #product.id},
+    {keypos, #product.appid_id},
     {file, filename:join(DataDir, "products.dat")}
   ]),
 
@@ -230,23 +232,24 @@ handle_call({app_authorize, AppID, HashedPass}, _From, State) ->
 handle_call({create_cart, AppID}, _From, State) ->
   CartID = rand:uniform(1000000),
 
-  case dets:insert_new(cart, #cart{id = CartID, appid = AppID, items = []}) of
+  case dets:insert_new(cart, #cart{appid_id = ?TO_APPID_ID(AppID, CartID), items = []}) of
     true -> {reply, {ok, CartID}, State};
     {error, Reason} -> {reply, {error, Reason}, State}
   end;
-handle_call({get_cart, AppID, CartID}, _From, State) ->
+handle_call({get_cart, CartID}, _From, State) ->
   case dets:lookup(cart, CartID) of
     [Cart] -> {reply, {ok, Cart}, State};
     Anything ->
       io:format("Anything: ~p", [Anything]),
       {reply, {error, "Could not find cart"}, State}
   end;
-handle_call({update_cart, AppID, CartID, ItemsToUpdate}, _From, State) ->
+handle_call({update_cart, CartID, ItemsToUpdate}, _From, State) ->
+  AppID = ?TO_APPID(CartID),
   case dets:lookup(cart, CartID) of
     [Cart] ->
       ItemsToUpdateWithName = lists:map(
         fun (It) ->
-          [#product{name = ProductName, price = ProductPrice}] = dets:lookup(product, It#order_item.productid),
+          [#product{name = ProductName, price = ProductPrice}] = dets:lookup(product, ?TO_APPID_ID(AppID, It#order_item.productid)),
           It#order_item{productname = ProductName, price = ProductPrice}
         end, ItemsToUpdate),
 
@@ -260,7 +263,7 @@ handle_call({update_cart, AppID, CartID, ItemsToUpdate}, _From, State) ->
       {reply, {error, "Could not find cart"}, State}
   end;
 handle_call({remove_cart_item, AppID, CartID, ProductID}, _From, State) ->
-  case dets:lookup(cart, CartID) of
+  case dets:lookup(cart, ?TO_APPID_ID(AppID, CartID)) of
     [Cart] ->
       ItemsToUpdateWithName = lists:filter(
         fun (It) -> It#order_item.productid =/= ProductID
@@ -275,12 +278,12 @@ handle_call({remove_cart_item, AppID, CartID, ProductID}, _From, State) ->
       io:format("Error: ~p", [Anything]),
       {reply, {error, "Could not find cart"}, State}
   end;
-handle_call({create_product, AppID, Product}, _From, State) when is_record(Product, product) ->
+handle_call({create_product, Product}, _From, State) when is_record(Product, product) ->
   case dets:insert_new(product, Product) of
     true -> {reply, {ok, Product}, State};
     {error, Reason} -> {reply, {error, Reason}, State}
   end;
-handle_call({get_product, AppID, ProductID}, _From, State) ->
+handle_call({get_product, ProductID}, _From, State) ->
   case dets:lookup(product, ProductID) of
     [Product] -> {reply, {ok, Product}, State};
     Anything ->
@@ -288,11 +291,11 @@ handle_call({get_product, AppID, ProductID}, _From, State) ->
       {reply, {error, "Could not find product"}, State}
   end;
 handle_call({get_products, AppID, Params}, _From, State) ->
-  case dets:match_object(product, #product{id = '$1', name = '$2', price = '$3'}) of
-    Products -> {reply, {ok, Products}, State};
+  case dets:match_object(product, #product{appid_id = ?TO_APPID_ID(AppID, '_'), name = '$2', price = '$3'}) of
     {error, Reason} ->
       io:format("Error: ~p", [Reason]),
-      {reply, {error, "Could not find product"}, State}
+      {reply, {error, "Could not find product"}, State};
+    Products -> {reply, {ok, Products}, State}
   end;
 handle_call({create_order, AppID, Items}, _From, State) ->
   OrderID = list_to_binary(uuid:uuid_to_string(uuid:get_v4())),
@@ -301,14 +304,14 @@ handle_call({create_order, AppID, Items}, _From, State) ->
       io:format("Qty: ~p x Price: ~p", [Item#order_item.qty, Item#order_item.price]),
       Acc + Item#order_item.qty * Item#order_item.price end,
     0.0, Items),
-  Order = #order{id = OrderID, items = Items, total = Total},
+  Order = #order{appid_id = ?TO_APPID_ID(AppID, OrderID), items = Items, total = Total},
   case dets:insert_new(order, Order) of
     true -> {reply, {ok, Order}, State};
     {error, Reason} -> {reply, {error, Reason}, State}
   end;
-handle_call({update_order, AppID, UpdatedOrder = #order{id = OrderID}}, _From, State) ->
+handle_call({update_order, AppID, UpdatedOrder = #order{appid_id = OrderID}}, _From, State) ->
   case dets:lookup(order, OrderID) of
-    [#order{id = OrderID}] ->
+    [#order{appid_id = OrderID}] ->
       case dets:insert(order, UpdatedOrder) of
         ok -> {reply, {ok, UpdatedOrder}, State};
         {error, Reason} -> {reply, {error, Reason}, State}
@@ -321,7 +324,7 @@ handle_call({get_order, AppID, {transactionid, TxID}}, _From, State) ->
   case dets:match_object(order,
     #order{
       transactionid = TxID,
-      id = '$1',
+      appid_id = ?TO_APPID_ID(AppID, '_'),
       refno = '$2',
       status = '$3',
       total = '$4',
@@ -330,7 +333,7 @@ handle_call({get_order, AppID, {transactionid, TxID}}, _From, State) ->
     [Order] -> {reply, {ok, Order}, State};
     {error, Reason} -> {reply, {error, Reason}, State}
   end;
-handle_call({get_order, AppID, OrderID}, _From, State) ->
+handle_call({get_order, OrderID}, _From, State) ->
   case dets:lookup(order, OrderID) of
     [Order] -> {reply, {ok, Order}, State};
     {error, Reason} -> {reply, {error, Reason}, State}
