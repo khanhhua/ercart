@@ -22,7 +22,13 @@ export default Route.extend({
   actions: {
     logout() {
       this.get('authService').logout().then(() => {
-        this.transitionTo('login');
+        const host = window.location.host;
+        if (window.location.hostname === 'localhost') {
+          window.location.href = `http://${host}/login`;
+        } else {
+          const target = host.substr(host.indexOf('.') + 1);
+          window.location.href = `http://${target}/login`;
+        }
       });
     }
   }
