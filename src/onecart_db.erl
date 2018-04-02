@@ -22,6 +22,7 @@
   create_product/1,
   get_product/1,
   get_products/2,
+  update_product/1,
   get_order/1,
   get_order/2,
   get_orders/2,
@@ -66,6 +67,9 @@ create_product(Product) ->
 
 get_product(ProductID) ->
   gen_server:call(?SERVER, {get_product, ProductID}).
+
+update_product(Product) ->
+  gen_server:call(?SERVER, {update_product, Product}).
 
 get_products(AppID, Params) ->
   gen_server:call(?SERVER, {get_products, AppID, Params}).
@@ -296,6 +300,25 @@ handle_call({get_products, AppID, Params}, _From, State) ->
       io:format("Error: ~p", [Reason]),
       {reply, {error, "Could not find product"}, State};
     Products -> {reply, {ok, Products}, State}
+  end;
+handle_call({update_product, UpdatedProduct = #product{appid_id = ProductID}}, _From, State) ->
+  case dets:lookup(product, ProductID) of
+    {error, Reason} ->
+      io:format("Error: ~p", [Reason]),
+      {reply, {error, "Could not find product"}, State};
+    [Product] when Product#product.appid_id =:= ProductID ->
+      %% Merge
+      Updated = ?MERGE_RECORD(product, Product, UpdatedProduct),
+
+      case dets:insert(product, Updated) of
+        ok -> {reply, {ok, Updated}, State};
+        Anything ->
+          io:format("Error: ~p", [Anything]),
+          {reply, {error, "Could not update product"}, State}
+      end;
+    Anything ->
+      io:format("Error: ~p", [Anything]),
+      {reply, {error, "Could not find product"}, State}
   end;
 handle_call({create_order, AppID, Items}, _From, State) ->
   OrderID = list_to_binary(uuid:uuid_to_string(uuid:get_v4())),

@@ -146,7 +146,32 @@ resource_product(Req0 = #{method := <<"GET">>}, State = #{appid := AppID}) ->
   ProductID = ?TO_APPID_ID(AppID, ID),
   {ok,Product} = onecart_db:get_product(ProductID),
   Req = cowboy_req:reply(200, Headers,
-    jsx:encode(#{id => ?TO_ID(Product#product.appid_id), name => Product#product.name}), Req0),
+    jsx:encode(#{product => #{
+      id => ?TO_ID(Product#product.appid_id),
+      name => Product#product.name,
+      price => Product#product.price
+    }}), Req0),
+  {ok, Req, State};
+resource_product(Req0 = #{method := <<"PUT">>}, State = #{appid := AppID}) ->
+  Headers = #{<<"content-type">> => <<"application/json">>},
+  ID = cowboy_req:binding(productid, Req0),
+  {ok, Body, _} = cowboy_req:read_body(Req0),
+  JSON = jsx:decode(Body, [return_maps]),
+  Data = maps:get(<<"product">>, JSON),
+  ProductID = ?TO_APPID_ID(AppID, ID),
+  Product = #product{
+    appid_id = ProductID,
+    name = maps:get(<<"name">>, Data),
+    price = maps:get(<<"price">>, Data)
+  },
+  {ok, Updated} = onecart_db:update_product(Product),
+
+  Req = cowboy_req:reply(200, Headers,
+    jsx:encode(#{product => #{
+      id => ?TO_ID(Updated#product.appid_id),
+      name => Updated#product.name,
+      price => Updated#product.price
+    }}), Req0),
   {ok, Req, State}.
 
 resource_products(Req0 = #{method := <<"POST">>}, State = #{appid := AppID}) ->
