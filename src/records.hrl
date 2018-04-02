@@ -20,3 +20,13 @@
 -define(TO_APPID(AppID_ID), element(1, AppID_ID)).
 -define(TO_ID(AppID_ID), element(2, AppID_ID)).
 -define(TO_APPID_ID(AppID, ID), {AppID, ID}).
+
+-define(MERGE_RECORD(RecordTag, Dst, Src), lists:foldl(
+  fun (Nth, Acc0) ->
+    UpdatedValue = if
+                     element(Nth, Src) =:= undefined -> element(Nth, Dst);
+                     true -> element(Nth, Src)
+                   end,
+
+    setelement(Nth, Acc0, UpdatedValue)
+  end, Dst, lists:seq(2, record_info(size, RecordTag)))).
